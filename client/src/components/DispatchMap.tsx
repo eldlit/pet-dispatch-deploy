@@ -30,7 +30,7 @@ const DispatchMap: FC<DispatchMapProps> = ({ className }) => {
     <Card className={`w-full h-[600px] relative overflow-hidden ${className}`}>
       <Map
         ref={mapRef}
-        mapboxAccessToken="pk.your_token_here" // Note: In production, use environment variable
+        mapboxAccessToken="pk.eyJ1IjoiZGVtby11c2VyIiwiYSI6ImNrbmh5MjBwMzBpMHcyb3FxYmx1bnE1cGcifQ.uKvOL_gqWm4-mhDHdXXE9A"
         initialViewState={viewport}
         onMove={evt => setViewport(evt.viewState)}
         style={{ width: '100%', height: '100%' }}

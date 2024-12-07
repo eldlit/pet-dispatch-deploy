@@ -16,8 +16,9 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { mockRides, mockCustomers, mockDrivers } from '../lib/mock-data';
 
+import { enUS } from 'date-fns/locale';
 const locales = {
-  'en-US': require('date-fns/locale/en-US'),
+  'en-US': enUS,
 };
 
 const localizer = dateFnsLocalizer({
