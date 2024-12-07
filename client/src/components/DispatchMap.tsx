@@ -61,7 +61,7 @@ const DispatchMap: FC<DispatchMapProps> = ({ className }) => {
                 <div className="p-2">
                   <h3 className="font-semibold">{driver.name}</h3>
                   <p className="text-sm text-muted-foreground">{driver.phone}</p>
-                  <Badge variant={driver.status === 'available' ? 'success' : 'secondary'}>
+                  <Badge variant={driver.status === 'available' ? 'default' : 'secondary'}>
                     {driver.status}
                   </Badge>
                 </div>

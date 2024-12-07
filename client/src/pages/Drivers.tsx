@@ -42,7 +42,7 @@ const Drivers: FC = () => {
                 </div>
               </div>
               <Badge
-                variant={driver.status === "available" ? "success" : "secondary"}
+                variant={driver.status === "available" ? "default" : "secondary"}
               >
                 {driver.status}
               </Badge>
