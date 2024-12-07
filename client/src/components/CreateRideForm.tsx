@@ -139,7 +139,7 @@ const CreateRideForm: FC = () => {
               <FormControl>
                 <Input
                   type="datetime-local"
-                  value={field.value.toISOString().slice(0, 16)}
+                  value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : ''}
                   onChange={(e) => field.onChange(new Date(e.target.value))}
                 />
               </FormControl>
@@ -159,7 +159,7 @@ const CreateRideForm: FC = () => {
                   type="number"
                   step="0.01"
                   placeholder="0.00"
-                  value={field.value}
+                  value={field.value || "0.00"}
                   onChange={(e) => field.onChange(e.target.value)}
                 />
               </FormControl>
