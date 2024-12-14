@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import Dispatch from "./pages/Dispatch";
 import Drivers from "./pages/Drivers";
+import Orders from "./pages/Orders";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
         <Route path="/customers" component={Customers} />
         <Route path="/dispatch" component={Dispatch} />
         <Route path="/drivers" component={Drivers} />
+        <Route path="/orders" component={Orders} />
         <Route>404 Page Not Found</Route>
       </Switch>
     </Layout>

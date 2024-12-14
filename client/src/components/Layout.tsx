@@ -12,6 +12,7 @@ import {
   X,
   Sun,
   Moon,
+  ClipboardList,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +32,7 @@ const Layout: FC<LayoutProps> = ({ children }) => {
     { path: "/customers", label: "Customers", icon: Users },
     { path: "/dispatch", label: "Dispatch", icon: Map },
     { path: "/drivers", label: "Drivers", icon: Car },
+    { path: "/orders", label: "Orders", icon: ClipboardList },
   ];
 
   useEffect(() => {
