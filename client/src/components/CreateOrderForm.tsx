@@ -28,9 +28,13 @@ const orderSchema = z.object({
   dropoffLocation: z.string().min(1, "Dropoff location is required"),
   scheduledTime: z.string().min(1, "Scheduled time is required"),
   price: z.string().min(1, "Price is required"),
-  status: z.enum(["incomplete", "complete", "refunded", "cancelled"]),
+  status: z.enum(["incomplete", "complete", "refunded", "cancelled"]).default("incomplete"),
   notes: z.string().optional(),
-  petDetails: z.string().min(1, "Pet details are required"),
+  petDetails: z.object({
+    type: z.string().min(1, "Pet type is required"),
+    name: z.string().min(1, "Pet name is required"),
+    specialNeeds: z.string().optional()
+  })
 });
 
 type OrderFormData = z.infer<typeof orderSchema>;
@@ -150,22 +154,53 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
           />
         </div>
 
-        <FormField
-          control={form.control}
-          name="petDetails"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Pet Details</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Enter pet details (type, name, special needs)"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="space-y-4 border rounded-lg p-4 bg-muted/10">
+          <h3 className="font-medium">Pet Details</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="petDetails.type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pet Type</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Dog, Cat" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="petDetails.name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pet Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Pet's name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <FormField
+            control={form.control}
+            name="petDetails.specialNeeds"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Special Needs (Optional)</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    placeholder="Any special requirements or medical needs"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <FormField
           control={form.control}
