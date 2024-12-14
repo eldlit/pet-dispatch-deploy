@@ -19,12 +19,18 @@ const DispatchMap: FC<DispatchMapProps> = ({ className }) => {
   const [selectedDriver, setSelectedDriver] = useState<number | null>(null);
   const mapRef = useRef(null);
 
-  // Simulate real driver locations
-  const driverLocations = mockDrivers.map(driver => ({
-    ...driver,
-    latitude: 40.7128 + (Math.random() - 0.5) * 0.1,
-    longitude: -74.0060 + (Math.random() - 0.5) * 0.1,
-  }));
+  // Filter active drivers and simulate their locations
+  const driverLocations = mockDrivers
+    .filter(driver => driver.status !== 'offline')
+    .map(driver => ({
+      ...driver,
+      latitude: 40.7128 + (Math.random() - 0.5) * 0.1,
+      longitude: -74.0060 + (Math.random() - 0.5) * 0.1,
+      currentRide: mockRides.find(ride => 
+        ride.driverId === driver.id && 
+        ride.status === 'in_progress'
+      ),
+    }));
 
   return (
     <Card className={`w-full h-[600px] relative overflow-hidden ${className}`}>
@@ -60,12 +66,28 @@ const DispatchMap: FC<DispatchMapProps> = ({ className }) => {
                 closeOnClick={false}
                 anchor="bottom"
               >
-                <div className="p-2">
-                  <h3 className="font-semibold">{driver.name}</h3>
+                <div className="p-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">{driver.name}</h3>
+                    <Badge variant={driver.status === 'available' ? 'default' : 'secondary'}>
+                      {driver.status}
+                    </Badge>
+                  </div>
                   <p className="text-sm text-muted-foreground">{driver.phone}</p>
-                  <Badge variant={driver.status === 'available' ? 'default' : 'secondary'}>
-                    {driver.status}
-                  </Badge>
+                  {driver.currentRide && (
+                    <div className="border-t pt-2 mt-2">
+                      <p className="text-sm font-medium">Current Ride:</p>
+                      <p className="text-xs text-muted-foreground">
+                        From: {driver.currentRide.pickupLocation}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        To: {driver.currentRide.dropoffLocation}
+                      </p>
+                      <p className="text-xs font-medium text-primary">
+                        ${driver.currentRide.price}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </Popup>
             )}
@@ -74,14 +96,20 @@ const DispatchMap: FC<DispatchMapProps> = ({ className }) => {
       </Map>
 
       <div className="absolute bottom-4 right-4 bg-background/95 p-4 rounded-lg shadow-lg">
-        <h3 className="font-semibold mb-2">Active Drivers</h3>
-        <div className="text-sm">
+        <h3 className="font-semibold mb-2">Driver Status</h3>
+        <div className="space-y-1 text-sm">
           <p>Available: <span className="font-medium text-green-500">
             {driverLocations.filter(d => d.status === 'available').length}
           </span></p>
           <p>On Ride: <span className="font-medium text-primary">
             {driverLocations.filter(d => d.status === 'on_ride').length}
           </span></p>
+          <p>Total Active: <span className="font-medium">
+            {driverLocations.length}
+          </span></p>
+          <div className="text-xs text-muted-foreground mt-2">
+            Click on a driver icon to view details
+          </div>
         </div>
       </div>
     </Card>
