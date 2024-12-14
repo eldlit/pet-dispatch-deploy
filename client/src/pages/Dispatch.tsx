@@ -1,107 +1,175 @@
-import { FC, useState } from "react";
+import { FC } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Plus, Calendar, Map } from "lucide-react";
-import CreateRideForm from "../components/CreateRideForm";
-import RideCalendar from "../components/RideCalendar";
-import DispatchMap from "../components/DispatchMap";
-import { mockRides } from "../lib/mock-data";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Plus, Phone, Clock } from "lucide-react";
+import { mockDrivers, mockRides } from "../lib/mock-data";
 
 const Dispatch: FC = () => {
-  const [selectedTab, setSelectedTab] = useState("calendar");
+  // Filter active drivers (available or on ride)
+  const activeDrivers = mockDrivers.filter(
+    (driver) => driver.status !== "offline"
+  );
+
+  // Get current rides for drivers
+  const getCurrentRide = (driverId: number) => {
+    return mockRides.find(
+      (ride) => ride.driverId === driverId && ride.status === "in_progress"
+    );
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dispatch Center</h1>
-          <p className="text-muted-foreground">Manage and track rides in real-time</p>
+          <p className="text-muted-foreground">
+            View and manage driver availability in real-time
+          </p>
         </div>
-        <div className="flex items-center gap-4">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" /> Create New Ride
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Schedule New Ride</DialogTitle>
-              </DialogHeader>
-              <CreateRideForm />
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Button>
+          <Plus className="mr-2 h-4 w-4" /> Assign New Ride
+        </Button>
       </div>
 
-      <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="calendar" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" /> Calendar View
-          </TabsTrigger>
-          <TabsTrigger value="map" className="flex items-center gap-2">
-            <Map className="h-4 w-4" /> Map View
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="calendar" className="space-y-4">
-          <RideCalendar />
-        </TabsContent>
-        <TabsContent value="map" className="space-y-4">
-          <DispatchMap className="h-[800px]" />
-        </TabsContent>
-      </Tabs>
+      <div className="grid grid-cols-1 gap-6">
+        {/* Available Drivers */}
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4">Available Drivers</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Driver</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Current/Next Location</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {activeDrivers.map((driver) => {
+                const currentRide = getCurrentRide(driver.id);
+                return (
+                  <TableRow key={driver.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage
+                            src={`https://i.pravatar.cc/40?u=${driver.id}`}
+                            alt={driver.name}
+                          />
+                          <AvatarFallback>
+                            {driver.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">{driver.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            ID #{driver.id}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={driver.status === "available" ? "default" : "secondary"}
+                        className="capitalize"
+                      >
+                        {driver.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {currentRide ? (
+                        <div>
+                          <div className="font-medium">
+                            Current: {currentRide.dropoffLocation}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            ETA: {new Date(currentRide.scheduledTime).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          <Clock className="h-4 w-4 inline mr-1" />
+                          Available Now
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm">
+                        <Phone className="h-4 w-4 mr-1" />
+                        {driver.phone}
+                      </Button>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={driver.status !== "available"}
+                      >
+                        Assign Ride
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4">
-          <h2 className="font-semibold mb-4">Today's Rides</h2>
-          <div className="space-y-4">
-            {mockRides.map((ride) => (
-              <Card key={ride.id} className="p-3 bg-muted/50">
-                <div className="font-medium">{ride.pickupLocation}</div>
-                <div className="text-sm text-muted-foreground">
-                  {new Date(ride.scheduledTime).toLocaleTimeString()}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </Card>
-        <Card className="p-4">
-          <h2 className="font-semibold mb-4">Active Rides</h2>
-          <div className="space-y-4">
-            {mockRides
-              .filter((ride) => ride.status === "pending")
-              .map((ride) => (
-                <Card key={ride.id} className="p-3 bg-muted/50">
-                  <div className="font-medium">{ride.pickupLocation}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {new Date(ride.scheduledTime).toLocaleTimeString()}
-                  </div>
-                </Card>
-              ))}
-          </div>
-        </Card>
-        <Card className="p-4">
-          <h2 className="font-semibold mb-4">Completed Today</h2>
-          <div className="space-y-4">
-            {mockRides
-              .filter((ride) => ride.status === "completed")
-              .map((ride) => (
-                <Card key={ride.id} className="p-3 bg-muted/50">
-                  <div className="font-medium">{ride.pickupLocation}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {new Date(ride.scheduledTime).toLocaleTimeString()}
-                  </div>
-                </Card>
-              ))}
-          </div>
+        {/* Active Rides */}
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4">Active Rides</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Driver</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Pickup</TableHead>
+                <TableHead>Dropoff</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {mockRides
+                .filter((ride) => ride.status === "in_progress")
+                .map((ride) => {
+                  const driver = mockDrivers.find((d) => d.id === ride.driverId);
+                  return (
+                    <TableRow key={ride.id}>
+                      <TableCell>
+                        <div className="font-medium">{driver?.name}</div>
+                      </TableCell>
+                      <TableCell>Customer #{ride.customerId}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{ride.pickupLocation}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(ride.scheduledTime).toLocaleTimeString()}
+                        </div>
+                      </TableCell>
+                      <TableCell>{ride.dropoffLocation}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="capitalize">
+                          {ride.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+            </TableBody>
+          </Table>
         </Card>
       </div>
     </div>
