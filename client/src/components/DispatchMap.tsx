@@ -43,8 +43,10 @@ const DispatchMap: FC<DispatchMapProps> = ({ className }) => {
               longitude={driver.longitude}
               onClick={() => setSelectedDriver(driver.id)}
             >
-              <div className={`p-2 rounded-full bg-primary/10 cursor-pointer 
-                ${driver.status === 'available' ? 'text-green-500' : 'text-primary'}`}>
+              <div className={`p-3 rounded-full cursor-pointer transition-all duration-300 hover:scale-110 shadow-lg
+                ${driver.status === 'available' 
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' 
+                  : 'bg-gradient-to-r from-primary to-primary/70 text-white'}`}>
                 <Car className="h-6 w-6" />
               </div>
             </Marker>
