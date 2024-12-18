@@ -17,7 +17,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarPlus, Clock } from "lucide-react";
+import { CalendarPlus, Clock, X } from "lucide-react";
 
 const daysOfWeek = [
   "Monday",
