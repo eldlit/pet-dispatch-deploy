@@ -16,12 +16,42 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Filter } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Plus, Filter, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
 import CreateOrderForm from "../components/CreateOrderForm";
+import { mockRides, mockCustomers, mockDrivers } from "../lib/mock-data";
 
 const Orders: FC = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+
+  const filteredRides = mockRides.filter(ride => {
+    const matchesSearch = (text: string) => 
+      text.toLowerCase().includes(search.toLowerCase());
+    
+    const customer = mockCustomers.find(c => c.id === ride.customerId);
+    
+    const searchMatches = search === "" || 
+      matchesSearch(customer?.name || "") ||
+      matchesSearch(ride.pickupLocation) ||
+      matchesSearch(ride.dropoffLocation) ||
+      matchesSearch(ride.petName) ||
+      matchesSearch(String(ride.id));
+      
+    const statusMatches = statusFilter.length === 0 || 
+      statusFilter.includes(ride.status);
+      
+    return searchMatches && statusMatches;
+  });
 
   return (
     <div className="space-y-6">
@@ -49,11 +79,41 @@ const Orders: FC = () => {
 
       <Card className="p-6">
         <div className="flex justify-between items-center mb-6">
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search orders..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 w-[300px]"
+              />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filter Status
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {["incomplete", "complete", "cancelled", "refunded"].map((status) => (
+                  <DropdownMenuCheckboxItem
+                    key={status}
+                    checked={statusFilter.includes(status)}
+                    onCheckedChange={(checked) => {
+                      setStatusFilter(
+                        checked
+                          ? [...statusFilter, status]
+                          : statusFilter.filter((s) => s !== status)
+                      );
+                    }}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -69,27 +129,71 @@ const Orders: FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* Sample row - will be replaced with real data */}
-            <TableRow>
-              <TableCell className="font-medium">#1001</TableCell>
-              <TableCell>John Doe</TableCell>
-              <TableCell>
-                <div className="text-sm">
-                  <div>Pickup: 123 Main St</div>
-                  <div>Dropoff: 456 Park Ave</div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="text-sm">
-                  <div>Dec 15, 2024</div>
-                  <div className="text-muted-foreground">2:30 PM</div>
-                </div>
-              </TableCell>
-              <TableCell>$50.00</TableCell>
-              <TableCell>
-                <Badge variant="secondary">Incomplete</Badge>
-              </TableCell>
-            </TableRow>
+            {filteredRides.map((ride) => {
+              const customer = mockCustomers.find(c => c.id === ride.customerId);
+              const driver = mockDrivers.find(d => d.id === ride.driverId);
+              return (
+                <TableRow key={ride.id} className="cursor-pointer hover:bg-muted/50">
+                  <TableCell className="font-medium">#{String(ride.id).padStart(4, '0')}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span>{customer?.name}</span>
+                      <span className="text-sm text-muted-foreground">{customer?.phone}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm space-y-1">
+                      <div>
+                        <span className="font-medium">Pet:</span> {ride.petName} ({ride.breed})
+                      </div>
+                      <div>
+                        <span className="font-medium">From:</span> {ride.pickupLocation}
+                      </div>
+                      <div>
+                        <span className="font-medium">To:</span> {ride.dropoffLocation}
+                      </div>
+                      {ride.specialNotes && (
+                        <div className="text-xs text-muted-foreground">
+                          Note: {ride.specialNotes}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      <div>{format(new Date(ride.scheduledTime), "PPP")}</div>
+                      <div className="text-muted-foreground">
+                        {format(new Date(ride.scheduledTime), "p")}
+                      </div>
+                      <Badge variant="outline" className="mt-1">
+                        {ride.rideType === "one_way" ? "One Way" : "Two Way"}
+                      </Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div>${ride.price}</div>
+                      <Badge variant="outline">
+                        {ride.paymentMethod === "cash" ? "Cash" : "Payment Link"}
+                      </Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        ride.status === "complete"
+                          ? "default"
+                          : ride.status === "incomplete"
+                          ? "secondary"
+                          : "destructive"
+                      }
+                    >
+                      {ride.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </Card>
