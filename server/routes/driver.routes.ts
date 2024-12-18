@@ -50,7 +50,6 @@ router.post("/", async (req, res) => {
     const newDriver = insertDriverSchema.parse({
       ...req.body,
       weeklySchedule: req.body.weeklySchedule ? JSON.stringify(req.body.weeklySchedule) : null,
-      scheduleOverrides: req.body.scheduleOverrides ? JSON.stringify(req.body.scheduleOverrides) : null,
     });
     const inserted = await db.insert(drivers).values(newDriver).returning();
     res.status(201).json(inserted[0]);

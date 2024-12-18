@@ -31,7 +31,7 @@ const Drivers: FC = () => {
   const [selectedDriver, setSelectedDriver] = useState<number | null>(null);
   const [isAddingDriver, setIsAddingDriver] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState("schedule");
 
   const handleDriverUpdate = (driverId: number | null, data: any) => {
     console.log("Updated driver data:", { driverId, data });
