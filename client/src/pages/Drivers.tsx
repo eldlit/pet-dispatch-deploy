@@ -42,51 +42,72 @@ const Drivers: FC = () => {
           }
         }}
       >
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-none">
             <DialogTitle className="flex items-center justify-between">
               <span>
                 {isAddingDriver ? "Add New Driver" : `Edit Driver: ${driver?.name}`}
               </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setSelectedDriver(null);
-                  setIsAddingDriver(false);
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                {!isAddingDriver && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      // TODO: Implement delete functionality
+                      console.log("Delete driver:", selectedDriver);
+                      setSelectedDriver(null);
+                    }}
+                  >
+                    Delete Driver
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setSelectedDriver(null);
+                    setIsAddingDriver(false);
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </DialogTitle>
           </DialogHeader>
 
-          <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="details" className="flex items-center gap-2">
-                <UserCog className="h-4 w-4" />
-                Driver Details
-              </TabsTrigger>
-              <TabsTrigger value="schedule" className="flex items-center gap-2">
-                <CalendarRange className="h-4 w-4" />
-                Schedule
-              </TabsTrigger>
-            </TabsList>
+          <div className="flex-none">
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="details" className="flex items-center gap-2">
+                  <UserCog className="h-4 w-4" />
+                  Driver Details
+                </TabsTrigger>
+                <TabsTrigger value="schedule" className="flex items-center gap-2">
+                  <CalendarRange className="h-4 w-4" />
+                  Schedule
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
-            <TabsContent value="details" className="mt-4">
-              <DriverDetailsForm
-                initialData={driver}
-                onSubmit={(data) => handleDriverUpdate(selectedDriver, data)}
-              />
-            </TabsContent>
+          <div className="flex-1 overflow-y-auto mt-4 pr-2">
+            <Tabs defaultValue="details" className="w-full">
+              <TabsContent value="details">
+                <DriverDetailsForm
+                  initialData={driver}
+                  onSubmit={(data) => handleDriverUpdate(selectedDriver, data)}
+                />
+              </TabsContent>
 
-            <TabsContent value="schedule" className="mt-4">
-              <DriverAvailability
-                driverId={selectedDriver || 0}
-                onUpdate={(scheduleData) => handleDriverUpdate(selectedDriver, { schedule: scheduleData })}
-              />
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="schedule">
+                <DriverAvailability
+                  driverId={selectedDriver || 0}
+                  onUpdate={(scheduleData) => handleDriverUpdate(selectedDriver, { schedule: scheduleData })}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
         </DialogContent>
       </Dialog>
     );
