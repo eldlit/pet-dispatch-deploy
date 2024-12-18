@@ -2,6 +2,7 @@ import { FC } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
 import {
   Form,
   FormControl,
@@ -54,15 +55,48 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
     },
   });
 
+  const { toast } = useToast();
+
   const onSubmit = async (data: OrderFormData) => {
-    console.log("Form submitted:", data);
-    // TODO: Implement order creation logic
-    onSuccess();
+    try {
+      // Create FormData for file upload
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        if (key === 'vaccinationCopy' && value instanceof FileList && value.length > 0) {
+          formData.append('vaccinationCopy', value[0]);
+        } else if (value !== undefined && value !== null && !(value instanceof FileList)) {
+          formData.append(key, String(value));
+        }
+      });
+
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create order');
+      }
+
+      toast({
+        title: "Success",
+        description: "Order created successfully",
+      });
+
+      onSuccess();
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create order. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto pr-6">
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Customer Selection</h2>
           <FormField
