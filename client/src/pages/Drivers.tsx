@@ -3,13 +3,25 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, X, CalendarRange, UserCog } from "lucide-react";
+import { Plus, X, CalendarRange, UserCog, AlertTriangle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { mockDrivers } from "../lib/mock-data";
 import DriverAvailability from "../components/DriverAvailability";
@@ -18,7 +30,9 @@ import DriverDetailsForm from "../components/DriverDetailsForm";
 const Drivers: FC = () => {
   const [selectedDriver, setSelectedDriver] = useState<number | null>(null);
   const [isAddingDriver, setIsAddingDriver] = useState(false);
-  
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState("details");
+
   const handleDriverUpdate = (driverId: number | null, data: any) => {
     console.log("Updated driver data:", { driverId, data });
     // TODO: Implement API call to update driver
@@ -33,16 +47,17 @@ const Drivers: FC = () => {
     const driver = getSelectedDriver();
 
     return (
-      <Dialog 
-        open={isOpen} 
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedDriver(null);
-            setIsAddingDriver(false);
-          }
-        }}
-      >
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <>
+        <Dialog 
+          open={isOpen} 
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedDriver(null);
+              setIsAddingDriver(false);
+            }
+          }}
+        >
+        <DialogContent className="max-w-4xl h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-none">
             <DialogTitle className="flex items-center justify-between">
               <span>
@@ -53,11 +68,7 @@ const Drivers: FC = () => {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => {
-                      // TODO: Implement delete functionality
-                      console.log("Delete driver:", selectedDriver);
-                      setSelectedDriver(null);
-                    }}
+                    onClick={() => setShowDeleteConfirm(true)}
                   >
                     Delete Driver
                   </Button>
@@ -76,40 +87,90 @@ const Drivers: FC = () => {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-none">
-            <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="details" className="flex items-center gap-2">
-                  <UserCog className="h-4 w-4" />
-                  Driver Details
-                </TabsTrigger>
-                <TabsTrigger value="schedule" className="flex items-center gap-2">
-                  <CalendarRange className="h-4 w-4" />
-                  Schedule
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-
-          <div className="flex-1 overflow-y-auto mt-4 pr-2">
-            <Tabs defaultValue="details" className="w-full">
-              <TabsContent value="details">
+          <div className="flex flex-col h-full">
+            <div className="flex-none">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="details" className="flex items-center gap-2">
+                    <UserCog className="h-4 w-4" />
+                    Driver Details
+                  </TabsTrigger>
+                  <TabsTrigger value="schedule" className="flex items-center gap-2">
+                    <CalendarRange className="h-4 w-4" />
+                    Schedule
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto mt-4 pr-2">
+              {activeTab === "details" ? (
                 <DriverDetailsForm
-                  initialData={driver}
+                  initialData={{
+                    name: driver?.name || "",
+                    email: driver?.email || "",
+                    mobile: driver?.phone || "",
+                    nationalId: driver?.nationalId || "",
+                    passportNumber: driver?.passportNumber || "",
+                    laborCard: driver?.laborCard || "",
+                    medicalInsurance: driver?.medicalInsurance || "",
+                    uaeVisa: driver?.uaeVisa || "",
+                    nationalIdExpiry: driver?.nationalIdExpiry || "",
+                    passportExpiry: driver?.passportExpiry || "",
+                    laborCardExpiry: driver?.laborCardExpiry || "",
+                    medicalInsuranceExpiry: driver?.medicalInsuranceExpiry || "",
+                    uaeVisaExpiry: driver?.uaeVisaExpiry || "",
+                  }}
                   onSubmit={(data) => handleDriverUpdate(selectedDriver, data)}
                 />
-              </TabsContent>
-
-              <TabsContent value="schedule">
+              ) : (
                 <DriverAvailability
                   driverId={selectedDriver || 0}
                   onUpdate={(scheduleData) => handleDriverUpdate(selectedDriver, { schedule: scheduleData })}
                 />
-              </TabsContent>
-            </Tabs>
+              )}
+            </div>
           </div>
+
         </DialogContent>
       </Dialog>
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              driver and remove their data from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/drivers/${selectedDriver}`, {
+                    method: 'DELETE',
+                  });
+                  if (response.ok) {
+                    setSelectedDriver(null);
+                    setShowDeleteConfirm(false);
+                    // TODO: Refresh drivers list
+                  } else {
+                    throw new Error('Failed to delete driver');
+                  }
+                } catch (error) {
+                  console.error('Error deleting driver:', error);
+                  // TODO: Show error toast
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      </>
     );
   };
 

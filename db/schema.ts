@@ -16,6 +16,18 @@ export const drivers = pgTable("drivers", {
   phone: text("phone").notNull(),
   email: text("email"),
   status: text("status").notNull().default("available"),
+  nationalId: text("national_id"),
+  passportNumber: text("passport_number"),
+  laborCard: text("labor_card"),
+  medicalInsurance: text("medical_insurance"),
+  uaeVisa: text("uae_visa"),
+  nationalIdExpiry: timestamp("national_id_expiry"),
+  passportExpiry: timestamp("passport_expiry"),
+  laborCardExpiry: timestamp("labor_card_expiry"),
+  medicalInsuranceExpiry: timestamp("medical_insurance_expiry"),
+  uaeVisaExpiry: timestamp("uae_visa_expiry"),
+  weeklySchedule: text("weekly_schedule"),  // JSON string containing weekly schedule
+  scheduleOverrides: text("schedule_overrides"),  // JSON string containing schedule overrides
   createdAt: timestamp("created_at").defaultNow(),
 });
 
