@@ -138,6 +138,16 @@ const DriverAvailability: FC<DriverAvailabilityProps> = ({
           </div>
         ))}
       </div>
+      <div className="mt-6 flex justify-end">
+        <Button 
+          type="submit"
+          onClick={() => {
+            onUpdate?.(weeklySchedule);
+          }}
+        >
+          Save Changes
+        </Button>
+      </div>
     </Card>
   );
 };

@@ -33,9 +33,39 @@ const Drivers: FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState("schedule");
 
-  const handleDriverUpdate = (driverId: number | null, data: any) => {
-    console.log("Updated driver data:", { driverId, data });
-    // TODO: Implement API call to update driver
+  const { toast } = useToast();
+  
+  const handleDriverUpdate = async (driverId: number | null, data: any) => {
+    try {
+      const response = await fetch(`/api/drivers/${driverId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update driver');
+      }
+      
+      toast({
+        title: "Success",
+        description: "Driver information updated successfully",
+      });
+      
+      // Close the dialog after successful update
+      setSelectedDriver(null);
+      setIsAddingDriver(false);
+      
+    } catch (error) {
+      console.error('Error updating driver:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update driver information",
+        variant: "destructive",
+      });
+    }
   };
 
   const getSelectedDriver = () => {
@@ -60,29 +90,21 @@ const Drivers: FC = () => {
         <DialogContent className="max-w-4xl h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader className="flex-none">
             <DialogTitle className="flex items-center justify-between">
-              <span>
-                {isAddingDriver ? "Add New Driver" : `Edit Driver: ${driver?.name}`}
-              </span>
-              <div className="flex items-center gap-2">
-                {!isAddingDriver && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    Delete Driver
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setSelectedDriver(null);
-                    setIsAddingDriver(false);
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+              <div className="flex items-center justify-between w-full">
+                <span>
+                  {isAddingDriver ? "Add New Driver" : `Edit Driver: ${driver?.name}`}
+                </span>
+                <div className="flex items-center gap-2">
+                  {!isAddingDriver && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setShowDeleteConfirm(true)}
+                    >
+                      Delete Driver
+                    </Button>
+                  )}
+                </div>
               </div>
             </DialogTitle>
           </DialogHeader>
