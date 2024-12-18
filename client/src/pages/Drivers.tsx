@@ -139,11 +139,11 @@ const Drivers: FC = () => {
                     laborCard: driver?.laborCard || "",
                     medicalInsurance: driver?.medicalInsurance || "",
                     uaeVisa: driver?.uaeVisa || "",
-                    nationalIdExpiry: driver?.nationalIdExpiry || "",
-                    passportExpiry: driver?.passportExpiry || "",
-                    laborCardExpiry: driver?.laborCardExpiry || "",
-                    medicalInsuranceExpiry: driver?.medicalInsuranceExpiry || "",
-                    uaeVisaExpiry: driver?.uaeVisaExpiry || "",
+                    nationalIdExpiry: driver?.nationalIdExpiry ? format(new Date(driver.nationalIdExpiry), "yyyy-MM-dd") : "",
+                    passportExpiry: driver?.passportExpiry ? format(new Date(driver.passportExpiry), "yyyy-MM-dd") : "",
+                    laborCardExpiry: driver?.laborCardExpiry ? format(new Date(driver.laborCardExpiry), "yyyy-MM-dd") : "",
+                    medicalInsuranceExpiry: driver?.medicalInsuranceExpiry ? format(new Date(driver.medicalInsuranceExpiry), "yyyy-MM-dd") : "",
+                    uaeVisaExpiry: driver?.uaeVisaExpiry ? format(new Date(driver.uaeVisaExpiry), "yyyy-MM-dd") : "",
                   }}
                   onSubmit={(data) => handleDriverUpdate(selectedDriver, data)}
                 />
