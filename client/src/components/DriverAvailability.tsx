@@ -101,7 +101,11 @@ const DriverAvailability: FC<DriverAvailabilityProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => addTimeSlot(day)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  addTimeSlot(day);
+                }}
               >
                 Add Time Slot
               </Button>
@@ -140,8 +144,9 @@ const DriverAvailability: FC<DriverAvailabilityProps> = ({
       </div>
       <div className="mt-6 flex justify-end">
         <Button 
-          type="submit"
-          onClick={() => {
+          variant="default"
+          onClick={(e) => {
+            e.preventDefault();
             onUpdate?.(weeklySchedule);
           }}
         >
