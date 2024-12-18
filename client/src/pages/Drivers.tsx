@@ -33,7 +33,7 @@ const Drivers: FC = () => {
   const [selectedDriver, setSelectedDriver] = useState<number | null>(null);
   const [isAddingDriver, setIsAddingDriver] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState("schedule");
+  const [activeTab, setActiveTab] = useState("details");
 
   const { toast } = useToast();
   
@@ -150,7 +150,7 @@ const Drivers: FC = () => {
               ) : (
                 <DriverAvailability
                   driverId={selectedDriver || 0}
-                  onUpdate={(scheduleData) => handleDriverUpdate(selectedDriver, { schedule: scheduleData })}
+                  onUpdate={(scheduleData) => handleDriverUpdate(selectedDriver, { weeklySchedule: JSON.stringify(scheduleData) })}
                 />
               )}
             </div>
