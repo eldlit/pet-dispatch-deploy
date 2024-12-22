@@ -14,7 +14,9 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { mockRides, mockCustomers, mockDrivers } from '../lib/mock-data';
+import { useToast } from "@/hooks/use-toast";
 
 import { enUS } from 'date-fns/locale';
 const locales = {
@@ -41,6 +43,32 @@ interface RideEvent {
 
 const RideCalendar: FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<RideEvent | null>(null);
+  const { toast } = useToast();
+
+  const handleUnassignRide = async (rideId: number) => {
+    try {
+      const response = await fetch(`/api/rides/${rideId}/unassign`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to unassign ride');
+      }
+
+      toast({
+        title: "Success",
+        description: "Ride unassigned successfully",
+      });
+
+      setSelectedEvent(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to unassign ride",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Transform rides into calendar events
   const events: RideEvent[] = mockRides.map(ride => {
@@ -51,7 +79,7 @@ const RideCalendar: FC = () => {
 
     return {
       id: ride.id,
-      title: `${customer.name} - ${ride.pickupLocation}`,
+      title: `${customer.name} - ${driver ? driver.name : 'Unassigned'}`,
       start,
       end,
       customer,
@@ -97,7 +125,7 @@ const RideCalendar: FC = () => {
       </Card>
 
       <Dialog open={!!selectedEvent} onOpenChange={() => setSelectedEvent(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Ride Details</DialogTitle>
           </DialogHeader>
@@ -129,13 +157,24 @@ const RideCalendar: FC = () => {
 
               <div className="space-y-2">
                 <p className="text-sm">
-                  <span className="font-medium">Pickup:</span>{" "}
+                  <span className="font-medium">Time:</span>{" "}
                   {format(selectedEvent.start, "PPp")}
                 </p>
-                <p className="text-sm">
-                  <span className="font-medium">Driver:</span>{" "}
-                  {selectedEvent.driver?.name || "Unassigned"}
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm">
+                    <span className="font-medium">Driver:</span>{" "}
+                    {selectedEvent.driver?.name || "Unassigned"}
+                  </p>
+                  {selectedEvent.driver && (
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => handleUnassignRide(selectedEvent.id)}
+                    >
+                      Unassign Driver
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           )}
