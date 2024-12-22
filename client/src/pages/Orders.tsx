@@ -35,21 +35,23 @@ const Orders: FC = () => {
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
 
   const filteredRides = mockRides.filter(ride => {
-    const matchesSearch = (text: string) => 
-      text.toLowerCase().includes(search.toLowerCase());
-    
+    const matchesSearch = (text: string | null | undefined) => {
+      if (!text) return false;
+      return text.toLowerCase().includes(search.toLowerCase());
+    };
+
     const customer = mockCustomers.find(c => c.id === ride.customerId);
-    
+
     const searchMatches = search === "" || 
-      matchesSearch(customer?.name || "") ||
+      matchesSearch(customer?.name) ||
       matchesSearch(ride.pickupLocation) ||
       matchesSearch(ride.dropoffLocation) ||
       matchesSearch(ride.petName) ||
       matchesSearch(String(ride.id));
-      
+
     const statusMatches = statusFilter.length === 0 || 
       statusFilter.includes(ride.status);
-      
+
     return searchMatches && statusMatches;
   });
 
