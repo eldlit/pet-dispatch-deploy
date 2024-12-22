@@ -44,6 +44,7 @@ const Orders: FC = () => {
 
     const searchMatches = search === "" || 
       matchesSearch(customer?.name) ||
+      matchesSearch(customer?.phone) ||
       matchesSearch(ride.pickupLocation) ||
       matchesSearch(ride.dropoffLocation) ||
       matchesSearch(ride.petName) ||
@@ -85,7 +86,7 @@ const Orders: FC = () => {
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search orders..."
+                placeholder="Search by customer name, phone, or order details..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8 w-[300px]"
