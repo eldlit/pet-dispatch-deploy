@@ -1,0 +1,48 @@
+ rest-express@1.0.0 dev
+> tsx watch --clear-screen=false server/index.ts
+
+10:27:46 AM [express] serving on port 5000
+
+ ERROR(TypeScript)  Object literal may only specify known properties, and 'notes' does not exist in type 'AsyncDefaultValues<{ customerId: number; petName: string; breed: string; accompanied: "accompanied" | "unaccompanied"; pickupLocation: string; dropoffLocation: string; rideType: "one_way" | "two_way"; ... 6 more ...; price?: string | undefined; }> | { ...; }'.
+ FILE  /home/runner/dispatch/client/src/components/CreateOrderForm.tsx:54:7
+
+    52 |     defaultValues: {
+    53 |       status: "incomplete",
+  > 54 |       notes: "",
+       |       ^^^^^
+    55 |     },
+    56 |   });
+    57 |
+
+ ERROR(TypeScript)  Type '{ id: number; customerId: number; driverId: number; pickupLocation: string; dropoffLocation: string; status: string; scheduledTime: Date; price: string; createdAt: Date; }' is missing the following properties from type '{ id: number; createdAt: Date | null; status: string; customerId: number; driverId: number | null; petName: string; breed: string; pickupLocation: string; dropoffLocation: string; specialNotes: string | null; ... 5 more ...; price: string | null; }': petName, breed, specialNotes, vaccinationCopy, and 3 more.
+ FILE  /home/runner/dispatch/client/src/lib/mock-data.ts:75:3
+
+    73 |
+    74 | export const mockRides: Ride[] = [
+  > 75 |   {
+       |   ^
+  > 76 |     id: 1,
+       | ^^^^^^^^^^
+  > 77 |     customerId: 1,
+       | ^^^^^^^^^^
+  > 78 |     driverId: 1,
+       | ^^^^^^^^^^
+  > 79 |     pickupLocation: "123 Main St",
+       | ^^^^^^^^^^
+  > 80 |     dropoffLocation: "456 Park Ave",
+       | ^^^^^^^^^^
+  > 81 |     status: "completed",
+       | ^^^^^^^^^^
+  > 82 |     scheduledTime: new Date(),
+       | ^^^^^^^^^^
+  > 83 |     price: "25.00",
+       | ^^^^^^^^^^
+  > 84 |     createdAt: new Date(),
+       | ^^^^^^^^^^
+  > 85 |   },
+       | ^^^^
+    86 |   // Add more mock rides...
+    87 | ];
+    88 |
+
+[TypeScript] Found 2 errors. Watching for file changes.

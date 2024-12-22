@@ -51,7 +51,9 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
     resolver: zodResolver(orderSchema),
     defaultValues: {
       status: "incomplete",
-      notes: "",
+      accompanied: "accompanied",
+      rideType: "one_way",
+      paymentMethod: "cash",
     },
   });
 
@@ -158,7 +160,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
               )}
             />
           </div>
-          
+
           <FormField
             control={form.control}
             name="vaccinationCopy"
@@ -166,8 +168,8 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
               <FormItem>
                 <FormLabel>Vaccination Copy</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="file" 
+                  <Input
+                    type="file"
                     accept="image/*,.pdf"
                     onChange={(e) => onChange(e.target.files)}
                     {...field}
@@ -185,7 +187,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
               <FormItem>
                 <FormLabel>Special Notes</FormLabel>
                 <FormControl>
-                  <Textarea 
+                  <Textarea
                     placeholder="Any special pickup/dropoff instructions or requirements"
                     {...field}
                   />
@@ -227,7 +229,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
               <FormItem>
                 <FormLabel>Pickup Location</FormLabel>
                 <FormControl>
-                  <Textarea 
+                  <Textarea
                     placeholder="Enter complete address including Building/Villa number"
                     {...field}
                   />
@@ -244,7 +246,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
               <FormItem>
                 <FormLabel>Dropoff Location</FormLabel>
                 <FormControl>
-                  <Textarea 
+                  <Textarea
                     placeholder="Enter complete address including Building/Villa number"
                     {...field}
                   />
