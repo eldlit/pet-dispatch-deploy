@@ -1,265 +1,358 @@
-import { FC, useState } from "react";
+import { FC, useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, CalendarRange, UserCog, AlertTriangle } from "lucide-react";
+import { Plus, CalendarRange, UserCog, Trash } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
 import { Toaster } from "@/components/ui/toaster";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { mockDrivers } from "../lib/mock-data";
-import DriverAvailability from "../components/DriverAvailability";
 import DriverDetailsForm from "../components/DriverDetailsForm";
+import DriverAvailability from "../components/DriverAvailability";
+import { format } from "date-fns";
+import axios from "axios";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+
+interface Driver {
+    id: number;
+    name: string;
+    phone: string;
+    email?: string;
+    status: string;
+    nationalId?: string;
+    passportNumber?: string;
+    laborCard?: string;
+    medicalInsurance?: string;
+    uaeVisa?: string;
+    nationalIdExpiry?: string;
+    passportExpiry?: string;
+    laborCardExpiry?: string;
+    medicalInsuranceExpiry?: string;
+    uaeVisaExpiry?: string;
+}
+
+const formatDate = (dateString?: string): string => {
+    if (!dateString) return "";
+    try {
+        return format(new Date(dateString), "yyyy-MM-dd");
+    } catch (error) {
+        console.error("Invalid date format:", dateString);
+        return "";
+    }
+};
 
 const Drivers: FC = () => {
-  const [selectedDriver, setSelectedDriver] = useState<number | null>(null);
-  const [isAddingDriver, setIsAddingDriver] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState("details");
+    const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [filteredDrivers, setFilteredDrivers] = useState<Driver[]>([]);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [selectedDriver, setSelectedDriver] = useState<number | null>(null);
+    const [isAddingDriver, setIsAddingDriver] = useState(false);
+    const [activeTab, setActiveTab] = useState("details");
+    const { toast } = useToast();
 
-  const { toast } = useToast();
-  
-  const handleDriverUpdate = async (driverId: number | null, data: any) => {
-    try {
-      const response = await fetch(`/api/drivers/${driverId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update driver');
-      }
-      
-      toast({
-        title: "Success",
-        description: "Driver information updated successfully",
-      });
-      
-      // Close the dialog after successful update
-      setSelectedDriver(null);
-      setIsAddingDriver(false);
-      
-    } catch (error) {
-      console.error('Error updating driver:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update driver information",
-        variant: "destructive",
-      });
-    }
-  };
+    useEffect(() => {
+        fetchDrivers();
+    }, []);
 
-  const getSelectedDriver = () => {
-    return mockDrivers.find(d => d.id === selectedDriver);
-  };
+    useEffect(() => {
+        const filtered = drivers.filter((driver) =>
+            driver.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        setFilteredDrivers(filtered);
+    }, [searchTerm, drivers]);
 
-  const renderDriverDialog = () => {
-    const isOpen = selectedDriver !== null || isAddingDriver;
-    const driver = getSelectedDriver();
+    const fetchDrivers = async () => {
+        try {
+            const response = await fetch(`${BACKEND_URL}/drivers`);
+            if (!response.ok) throw new Error("Failed to fetch drivers");
+            const data: Driver[] = await response.json();
+            setDrivers(data);
+            setFilteredDrivers(data);
+        } catch (error) {
+            console.error("Error fetching drivers:", error);
+            toast({
+                title: "Error",
+                description: "Failed to fetch drivers",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const fetchWeeklySchedule = async (driverId: number, weekStart: string) => {
+        try {
+            const response = await axios.get(`${BACKEND_URL}/drivers/${driverId}/weekly-schedule`, {
+                params: { weekStart },
+            });
+
+            console.log("Backend response:", response.data);
+
+            if (Array.isArray(response.data)) {
+                return response.data;
+            }
+
+            console.warn("Unexpected response format, expected an array but got:", response.data);
+            return [];
+        } catch (error) {
+            console.error("Error fetching weekly schedule:", error);
+            return [];
+        }
+    };
+
+    const deleteDriver = async (driverId: number) => {
+        try {
+            const response = await fetch(`${BACKEND_URL}/drivers/${driverId}`, {
+                method: "DELETE",
+            });
+
+            if (!response.ok) throw new Error("Failed to delete driver");
+
+            toast({
+                title: "Success",
+                description: "Driver deleted successfully",
+            });
+
+            fetchDrivers();
+        } catch (error) {
+            console.error("Error deleting driver:", error);
+            toast({
+                title: "Error",
+                description: "Failed to delete driver",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleDriverSave = async (driverId: number | null, driverData: Partial<Driver>) => {
+        if (driverId) {
+            // Editing an existing driver
+            try {
+                const response = await fetch(`${BACKEND_URL}/drivers/${driverId}/details`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(driverData),
+                });
+
+                if (!response.ok) throw new Error("Failed to update driver details");
+
+                toast({
+                    title: "Success",
+                    description: "Driver details updated successfully",
+                });
+
+                fetchDrivers(); // Refresh drivers list
+                setSelectedDriver(null);
+                setIsAddingDriver(false);
+            } catch (error) {
+                console.error("Error updating driver details:", error);
+                toast({
+                    title: "Error",
+                    description: "Failed to update driver details",
+                    variant: "destructive",
+                });
+            }
+        } else {
+            // Adding a new driver
+            try {
+                const response = await fetch(`${BACKEND_URL}/drivers`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(driverData),
+                });
+
+                if (!response.ok) throw new Error("Failed to add new driver");
+
+                toast({
+                    title: "Success",
+                    description: "New driver added successfully",
+                });
+
+                fetchDrivers(); // Refresh drivers list
+                setSelectedDriver(null);
+                setIsAddingDriver(false);
+            } catch (error) {
+                console.error("Error adding new driver:", error);
+                toast({
+                    title: "Error",
+                    description: "Failed to add new driver",
+                    variant: "destructive",
+                });
+            }
+        }
+    };
+
+    const handleScheduleUpdate = async (driverId: number, scheduleData: any) => {
+        try {
+            const response = await fetch(`${BACKEND_URL}/drivers/${driverId}/weekly-schedule`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(scheduleData),
+            });
+
+            if (!response.ok) throw new Error("Failed to update driver schedule");
+
+            toast({
+                title: "Success",
+                description: "Driver schedule updated successfully",
+            });
+
+            fetchDrivers();
+        } catch (error) {
+            console.error("Error updating driver schedule:", error);
+            toast({
+                title: "Error",
+                description: "Failed to update driver schedule",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const renderDriverDialog = () => {
+        const isOpen = selectedDriver !== null || isAddingDriver;
+        const driver = selectedDriver ? drivers.find((d) => d.id === selectedDriver) : null;
+
+        return (
+            <Dialog
+                open={isOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setSelectedDriver(null);
+                        setIsAddingDriver(false);
+                        setActiveTab("details");
+                    }
+                }}
+            >
+                <DialogContent className="max-w-4xl h-[80vh] overflow-hidden flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {isAddingDriver ? "Add New Driver" : `Edit Driver: ${driver?.name}`}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <Tabs
+                        value={activeTab}
+                        onValueChange={(value) => setActiveTab(value)}
+                        className="flex flex-col h-full"
+                    >
+                        <TabsList className="grid grid-cols-2">
+                            <TabsTrigger value="details">
+                                <UserCog className="h-4 w-4" />
+                                Driver Details
+                            </TabsTrigger>
+                            <TabsTrigger value="schedule" disabled={isAddingDriver}>
+                                <CalendarRange className="h-4 w-4" />
+                                Schedule
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="details" className="flex-1 overflow-y-auto mt-4 pr-2">
+                            <DriverDetailsForm
+                                initialData={{
+                                    name: driver?.name || "",
+                                    email: driver?.email || "",
+                                    phone: driver?.phone || "",
+                                    nationalId: driver?.nationalId || "",
+                                    passportNumber: driver?.passportNumber || "",
+                                    laborCard: driver?.laborCard || "",
+                                    medicalInsurance: driver?.medicalInsurance || "",
+                                    uaeVisa: driver?.uaeVisa || "",
+                                    nationalIdExpiry: formatDate(driver?.nationalIdExpiry),
+                                    passportExpiry: formatDate(driver?.passportExpiry),
+                                    laborCardExpiry: formatDate(driver?.laborCardExpiry),
+                                    medicalInsuranceExpiry: formatDate(driver?.medicalInsuranceExpiry),
+                                    uaeVisaExpiry: formatDate(driver?.uaeVisaExpiry),
+                                }}
+                                onSubmit={(data) => handleDriverSave(selectedDriver, data)}
+                            />
+                        </TabsContent>
+
+                        {!isAddingDriver && (
+                            <TabsContent value="schedule" className="flex-1 overflow-y-auto mt-4 pr-2">
+                                <DriverAvailability
+                                    driverId={selectedDriver!}
+                                    onSubmit={(scheduleData) => handleScheduleUpdate(selectedDriver!, scheduleData)}
+                                    fetchWeeklySchedule={fetchWeeklySchedule}
+                                />
+                            </TabsContent>
+                        )}
+                    </Tabs>
+                </DialogContent>
+            </Dialog>
+        );
+    };
 
     return (
-      <>
-        <Dialog 
-          open={isOpen} 
-          onOpenChange={(open) => {
-            if (!open) {
-              setSelectedDriver(null);
-              setIsAddingDriver(false);
-            }
-          }}
-        >
-        <DialogContent className="max-w-4xl h-[80vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-none">
-            <DialogTitle className="flex items-center justify-between">
-              <div className="flex items-center justify-between w-full">
-                <span>
-                  {isAddingDriver ? "Add New Driver" : `Edit Driver: ${driver?.name}`}
-                </span>
+        <div className="space-y-6">
+            <Toaster />
+            <div className="flex items-center justify-between">
+                <h1 className="text-3xl font-bold tracking-tight">Drivers</h1>
                 <div className="flex items-center gap-2">
-                  {!isAddingDriver && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setShowDeleteConfirm(true)}
-                    >
-                      Delete Driver
+                    <Input
+                        placeholder="Search drivers..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-64"
+                    />
+                    <Button onClick={() => setIsAddingDriver(true)}>
+                        <Plus className="mr-2 h-4 w-4" /> Add Driver
                     </Button>
-                  )}
                 </div>
-              </div>
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="flex flex-col h-full">
-            <div className="flex-none">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="details" className="flex items-center gap-2">
-                    <UserCog className="h-4 w-4" />
-                    Driver Details
-                  </TabsTrigger>
-                  <TabsTrigger value="schedule" className="flex items-center gap-2">
-                    <CalendarRange className="h-4 w-4" />
-                    Schedule
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
             </div>
-            
-            <div className="flex-1 overflow-y-auto mt-4 pr-2">
-              {activeTab === "details" ? (
-                <DriverDetailsForm
-                  initialData={{
-                    name: driver?.name || "",
-                    email: driver?.email || "",
-                    mobile: driver?.phone || "",
-                    nationalId: driver?.nationalId || "",
-                    passportNumber: driver?.passportNumber || "",
-                    laborCard: driver?.laborCard || "",
-                    medicalInsurance: driver?.medicalInsurance || "",
-                    uaeVisa: driver?.uaeVisa || "",
-                    nationalIdExpiry: driver?.nationalIdExpiry ? format(new Date(driver.nationalIdExpiry), "yyyy-MM-dd") : "",
-                    passportExpiry: driver?.passportExpiry ? format(new Date(driver.passportExpiry), "yyyy-MM-dd") : "",
-                    laborCardExpiry: driver?.laborCardExpiry ? format(new Date(driver.laborCardExpiry), "yyyy-MM-dd") : "",
-                    medicalInsuranceExpiry: driver?.medicalInsuranceExpiry ? format(new Date(driver.medicalInsuranceExpiry), "yyyy-MM-dd") : "",
-                    uaeVisaExpiry: driver?.uaeVisaExpiry ? format(new Date(driver.uaeVisaExpiry), "yyyy-MM-dd") : "",
-                  }}
-                  onSubmit={(data) => handleDriverUpdate(selectedDriver, data)}
-                />
-              ) : (
-                <DriverAvailability
-                  driverId={selectedDriver || 0}
-                  onUpdate={(scheduleData) => handleDriverUpdate(selectedDriver, { weeklySchedule: JSON.stringify(scheduleData) })}
-                />
-              )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredDrivers.map((driver) => (
+                    <Card
+                        key={driver.id}
+                        className="p-6 cursor-pointer hover:shadow-lg transition-all duration-300"
+                    >
+                        <div className="flex items-start justify-between">
+                            <div
+                                className="flex items-center gap-4"
+                                onClick={() => setSelectedDriver(driver.id)}
+                            >
+                                <Avatar className="h-12 w-12">
+                                    <AvatarImage
+                                        src={`https://i.pravatar.cc/48?u=${driver.id}`}
+                                        alt={driver.name}
+                                    />
+                                    <AvatarFallback>
+                                        {driver.name
+                                            .split(" ")
+                                            .map((n) => n[0])
+                                            .join("")}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <h3 className="font-semibold">{driver.name}</h3>
+                                    <p className="text-sm text-muted-foreground">{driver.phone}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Badge
+                                    variant={driver.status === "AVAILABLE" ? "default" : "secondary"}
+                                    className="capitalize"
+                                >
+                                    {driver.status}
+                                </Badge>
+                                <Button
+                                    variant="destructive"
+                                    size="icon"
+                                    onClick={() => deleteDriver(driver.id)}
+                                    title="Delete Driver"
+                                >
+                                    <Trash className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    </Card>
+                ))}
             </div>
-          </div>
 
-        </DialogContent>
-      </Dialog>
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              driver and remove their data from the system.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={async () => {
-                try {
-                  const response = await fetch(`/api/drivers/${selectedDriver}`, {
-                    method: 'DELETE',
-                  });
-                  if (response.ok) {
-                    setSelectedDriver(null);
-                    setShowDeleteConfirm(false);
-                    // TODO: Refresh drivers list
-                  } else {
-                    throw new Error('Failed to delete driver');
-                  }
-                } catch (error) {
-                  console.error('Error deleting driver:', error);
-                  // TODO: Show error toast
-                }
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      </>
-    );
-  };
-
-  return (
-    <div className="space-y-6">
-      <Toaster />
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Drivers</h1>
-          <p className="text-muted-foreground">Manage your driver fleet</p>
+            {renderDriverDialog()}
         </div>
-        <Button onClick={() => setIsAddingDriver(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add Driver
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mockDrivers.map((driver) => (
-          <Card 
-            key={driver.id} 
-            className="p-6 cursor-pointer hover:shadow-lg transition-all duration-300"
-            onClick={() => setSelectedDriver(driver.id)}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage
-                    src={`https://i.pravatar.cc/48?u=${driver.id}`}
-                    alt={driver.name}
-                  />
-                  <AvatarFallback>
-                    {driver.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-semibold">{driver.name}</h3>
-                  <p className="text-sm text-muted-foreground">{driver.phone}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    ID: #{String(driver.id).padStart(4, '0')}
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-2 text-right">
-                <Badge
-                  variant={driver.status === "available" ? "default" : "secondary"}
-                  className="capitalize"
-                >
-                  {driver.status}
-                </Badge>
-                {driver.email && (
-                  <p className="text-xs text-muted-foreground">{driver.email}</p>
-                )}
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {renderDriverDialog()}
-    </div>
-  );
+    );
 };
 
 export default Drivers;
