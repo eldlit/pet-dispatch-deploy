@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model customer {
+  id             Int            @id @default(autoincrement())
+  name           String
+  phone          String
+  email          String?
+  customerStatus CustomerStatus @default(ACTIVE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  ride ride[]
+}
+
+model driver {
+  id                     Int                       @id @default(autoincrement())
+  name                   String
+  phone                  String
+  email                  String?
+  status                 DriverStatus              @default(AVAILABLE)
+  nationalId             String?
+  passportNumber         String?
+  laborCard              String?
+  medicalInsurance       String?
+  uaeVisa                String?
+  nationalIdExpiry       DateTime?
+  passportExpiry         DateTime?
+  laborCardExpiry        DateTime?
+  medicalInsuranceExpiry DateTime?
+  uaeVisaExpiry          DateTime?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  scheduleOverrides      driver_monthly_override[]
+  weeklySchedule         driver_weekly_schedule[]
+
+  rider      ride[]
+  google_api google_api[]
+}
+
+model driver_weekly_schedule {
+  id        Int       @id @default(autoincrement())
+  driverId  Int
+  dayOfWeek DayOfWeek
+  startTime DateTime
+  endTime   DateTime
+  startDate DateTime
+  endDate   DateTime
+
+  driver driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+}
+
+model driver_monthly_override {
+  id           Int          @id @default(autoincrement())
+  driverId     Int
+  date         DateTime
+  overrideType OverrideType
+  startTime    DateTime?
+  endTime      DateTime?
+  driver       driver       @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([driverId, date])
+}
+
+model ride {
+  id              Int           @id @default(autoincrement())
+  customerId      Int           @map("customer_id")
+  driverId        Int?          @map("driver_id")
+  petName         String
+  breed           String
+  pickupLocation  String
+  dropoffLocation String
+  specialNotes    String?
+  vaccinationCopy String?
+  accompanied     Boolean       @default(true)
+  rideType        RideType      @default(ONE_WAY)
+  paymentMethod   PaymentMethod @default(CASH)
+  status          RideStatus    @default(INCOMPLETE)
+  scheduledTime   DateTime
+  rideEndTime     DateTime?
+  rideDistance    Decimal?      @db.Decimal(10, 2)
+  price           Decimal?      @db.Decimal(10, 2)
+  uploadedFile    Bytes?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  calendarEventId String?
+
+  customer customer @relation(fields: [customerId], references: [id])
+  driver   driver?  @relation(fields: [driverId], references: [id])
+}
+
+model google_api {
+  id           Int      @id @default(autoincrement())
+  driverId     Int      @unique
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  createdAt    DateTime
+  updatedAt    DateTime
+
+  driver driver? @relation(fields: [driverId], references: [id])
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum DriverStatus {
+  AVAILABLE
+  ON_RIDE
+  ANNUAL_LEAVE
+  SICK_LEAVE
+}
+
+enum PaymentMethod {
+  CASH
+  PAYMENT_LINK
+}
+
+enum RideType {
+  ONE_WAY
+  TWO_WAY
+}
+
+enum RideStatus {
+  INCOMPLETE
+  COMPLETE
+  CANCELLED
+  REFUNDED
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum OverrideType {
+  ANNUAL_LEAVE
+  SICK_LEAVE
+}
