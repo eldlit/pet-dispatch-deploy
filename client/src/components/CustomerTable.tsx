@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { z } from "zod";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://pet-dispatch-deploy-production.up.railway.app";
 
 interface Customer {
   id: number;

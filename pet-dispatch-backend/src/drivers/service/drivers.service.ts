@@ -5,10 +5,13 @@ import {
   DriversResponseDto,
   DriverWeeklyScheduleDto,
 } from '../model/drivers.response.dto';
-import {CreateDriverDto, CreateWeeklyScheduleDto} from '../model/create.driver.dto';
+import {
+  CreateDriverDto,
+  CreateWeeklyScheduleDto,
+} from '../model/create.driver.dto';
 import { DayOfWeek, DriverStatus } from '@prisma/client';
 import { UpdateDriverDto } from '../model/update.driver.dto';
-import {eachDayOfInterval, format} from "date-fns";
+import { eachDayOfInterval, format } from 'date-fns';
 
 @Injectable()
 export class DriversService {
@@ -167,8 +170,9 @@ export class DriversService {
     });
   }
 
-  async getWeeklySchedule( driverId: number | string, weekStart: Date) {
-    const numericId = typeof driverId === "string" ? parseInt(driverId, 10) : driverId;
+  async getWeeklySchedule(driverId: number | string, weekStart: Date) {
+    const numericId =
+      typeof driverId === 'string' ? parseInt(driverId, 10) : driverId;
 
     const weekEnd = new Date(weekStart);
     weekStart.setDate(weekStart.getDate() + 1);
@@ -204,12 +208,11 @@ export class DriversService {
     return schedule || [];
   }
 
-
   async updateDriverWeeklySchedule(
-      id: number | string,
-      weeklySchedule: CreateWeeklyScheduleDto[],
+    id: number | string,
+    weeklySchedule: CreateWeeklyScheduleDto[],
   ) {
-    const numericId = typeof id === "string" ? parseInt(id, 10) : id;
+    const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
 
     if (isNaN(numericId)) {
       throw new BadRequestException(`Invalid driver ID.`);
@@ -225,22 +228,26 @@ export class DriversService {
       Sunday: 'SUNDAY',
     };
 
-    console.log("Extracted weeklySchedule:", weeklySchedule);
+    console.log('Extracted weeklySchedule:', weeklySchedule);
 
-    const driver = await this.prisma.driver.findUnique({ where: { id: numericId } });
+    const driver = await this.prisma.driver.findUnique({
+      where: { id: numericId },
+    });
 
     if (!driver) {
       throw new BadRequestException(`Driver with ID ${numericId} not found.`);
     }
 
     // Validate all schedules
-    const dates = weeklySchedule.flatMap(schedule => [
+    const dates = weeklySchedule.flatMap((schedule) => [
       new Date(schedule.startDate),
       new Date(schedule.endDate),
     ]);
 
-    const weekStart = new Date(Math.min(...dates.map(date => date.getTime())));
-    const weekEnd = new Date(Math.max(...dates.map(date => date.getTime())));
+    const weekStart = new Date(
+      Math.min(...dates.map((date) => date.getTime())),
+    );
+    const weekEnd = new Date(Math.max(...dates.map((date) => date.getTime())));
 
     for (const schedule of weeklySchedule) {
       const startDate = new Date(schedule.startDate);
@@ -250,30 +257,33 @@ export class DriversService {
 
       if (startTime >= endTime) {
         throw new BadRequestException(
-            `Start time must be earlier than end time for ${schedule.dayOfWeek}.`,
+          `Start time must be earlier than end time for ${schedule.dayOfWeek}.`,
         );
       }
 
       if (startDate < weekStart || endDate > weekEnd) {
         throw new BadRequestException(
-            `Schedule for ${schedule.dayOfWeek} must fall within the same week.`,
+          `Schedule for ${schedule.dayOfWeek} must fall within the same week.`,
         );
       }
 
       const dayOfWeekEnumValue = dayOfWeekMap[schedule.dayOfWeek];
       if (!dayOfWeekEnumValue) {
-        throw new BadRequestException(`Invalid dayOfWeek: ${schedule.dayOfWeek}`);
+        throw new BadRequestException(
+          `Invalid dayOfWeek: ${schedule.dayOfWeek}`,
+        );
       }
 
       // Check if the schedule already exists
-      const existingSchedule = await this.prisma.driver_weekly_schedule.findFirst({
-        where: {
-          driverId: numericId,
-          dayOfWeek: dayOfWeekEnumValue,
-          startDate: startDate,
-          endDate: endDate,
-        },
-      });
+      const existingSchedule =
+        await this.prisma.driver_weekly_schedule.findFirst({
+          where: {
+            driverId: numericId,
+            dayOfWeek: dayOfWeekEnumValue,
+            startDate: startDate,
+            endDate: endDate,
+          },
+        });
 
       if (existingSchedule) {
         // Update the existing schedule
@@ -299,16 +309,17 @@ export class DriversService {
       }
     }
 
-    return { message: "Driver weekly schedule updated successfully for the specified week." };
+    return {
+      message:
+        'Driver weekly schedule updated successfully for the specified week.',
+    };
   }
 
-
-
   async applyMonthlySchedule(
-      id: number | string,
-      weeklySchedule: CreateWeeklyScheduleDto[],
-      monthStart: Date,
-      monthEnd: Date,
+    id: number | string,
+    weeklySchedule: CreateWeeklyScheduleDto[],
+    monthStart: Date,
+    monthEnd: Date,
   ) {
     const dayOfWeekMap: Record<string, DayOfWeek> = {
       Monday: 'MONDAY',
@@ -333,14 +344,17 @@ export class DriversService {
       throw new BadRequestException('Invalid monthStart or monthEnd date.');
     }
 
-    const allDatesInMonth = eachDayOfInterval({ start: startOfMonth, end: endOfMonth });
+    const allDatesInMonth = eachDayOfInterval({
+      start: startOfMonth,
+      end: endOfMonth,
+    });
 
     const schedulesToUpsert = allDatesInMonth.flatMap((currentDate) => {
       const dayOfWeek = format(currentDate, 'EEEE'); // Get day name
       const normalizedDayOfWeek = dayOfWeek.toLowerCase();
 
       const scheduleForDay = weeklySchedule.find(
-          (schedule) => schedule.dayOfWeek.toLowerCase() === normalizedDayOfWeek,
+        (schedule) => schedule.dayOfWeek.toLowerCase() === normalizedDayOfWeek,
       );
 
       if (!scheduleForDay) {
@@ -352,7 +366,7 @@ export class DriversService {
 
       if (startTime >= endTime) {
         throw new BadRequestException(
-            `Start time must be earlier than end time for ${scheduleForDay.dayOfWeek}.`
+          `Start time must be earlier than end time for ${scheduleForDay.dayOfWeek}.`,
         );
       }
 
@@ -366,67 +380,69 @@ export class DriversService {
       };
     });
 
-    console.log("Schedules to Upsert:", schedulesToUpsert);
+    console.log('Schedules to Upsert:', schedulesToUpsert);
 
-    const existingSchedules = await this.prisma.driver_weekly_schedule.findMany({
-      where: {
-        driverId,
-        startDate: { gte: startOfMonth, lte: endOfMonth },
+    const existingSchedules = await this.prisma.driver_weekly_schedule.findMany(
+      {
+        where: {
+          driverId,
+          startDate: { gte: startOfMonth, lte: endOfMonth },
+        },
       },
-    });
-
-    const existingScheduleKeys = new Set(
-        existingSchedules.map(
-            (s) => `${s.dayOfWeek}-${format(new Date(s.startDate), 'yyyy-MM-dd')}`
-        )
     );
 
-    console.log("Existing Schedule Keys:", existingScheduleKeys);
+    const existingScheduleKeys = new Set(
+      existingSchedules.map(
+        (s) => `${s.dayOfWeek}-${format(new Date(s.startDate), 'yyyy-MM-dd')}`,
+      ),
+    );
+
+    console.log('Existing Schedule Keys:', existingScheduleKeys);
 
     const newSchedules = schedulesToUpsert.filter((s) => {
       const key = `${s.dayOfWeek}-${format(s.startDate, 'yyyy-MM-dd')}`;
       return !existingScheduleKeys.has(key);
     });
 
-    console.log("New Schedules:", newSchedules);
+    console.log('New Schedules:', newSchedules);
 
     const updates = schedulesToUpsert.filter((s) => {
       const key = `${s.dayOfWeek}-${format(s.startDate, 'yyyy-MM-dd')}`;
       return existingScheduleKeys.has(key);
     });
 
-    console.log("Updates:", updates);
+    console.log('Updates:', updates);
 
     const transactionOperations = [];
 
     if (newSchedules.length > 0) {
       transactionOperations.push(
-          this.prisma.driver_weekly_schedule.createMany({
-            data: newSchedules,
-            skipDuplicates: true,
-          })
+        this.prisma.driver_weekly_schedule.createMany({
+          data: newSchedules,
+          skipDuplicates: true,
+        }),
       );
     }
 
     updates.forEach((update) => {
       transactionOperations.push(
-          this.prisma.driver_weekly_schedule.updateMany({
-            where: {
-              driverId: update.driverId,
-              dayOfWeek: update.dayOfWeek,
-              startDate: update.startDate,
-              endDate: update.endDate,
-            },
-            data: {
-              startTime: update.startTime,
-              endTime: update.endTime,
-            },
-          })
+        this.prisma.driver_weekly_schedule.updateMany({
+          where: {
+            driverId: update.driverId,
+            dayOfWeek: update.dayOfWeek,
+            startDate: update.startDate,
+            endDate: update.endDate,
+          },
+          data: {
+            startTime: update.startTime,
+            endTime: update.endTime,
+          },
+        }),
       );
     });
 
-    transactionOperations.forEach(operation => {
-      console.log("Transaction Operation:", operation);
+    transactionOperations.forEach((operation) => {
+      console.log('Transaction Operation:', operation);
     });
 
     await this.prisma.$transaction(transactionOperations);
@@ -434,16 +450,16 @@ export class DriversService {
     return { message: 'Driver monthly schedule applied successfully' };
   }
 
-
   async deleteDriver(id: number | string): Promise<{ message: string }> {
-
-    const numericId = typeof id === "string" ? parseInt(id, 10) : id;
+    const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
 
     if (isNaN(numericId)) {
       throw new BadRequestException(`Invalid driver ID.`);
     }
 
-    const driver = await this.prisma.driver.findUnique({where: {id: numericId}});
+    const driver = await this.prisma.driver.findUnique({
+      where: { id: numericId },
+    });
 
     if (!driver) {
       throw new BadRequestException(`Driver with ID ${id} not found.`);
@@ -463,8 +479,6 @@ export class DriversService {
 
     return { message: 'Driver and related data deleted successfully' };
   }
-
-
 
   async updateDriverScheduleOverrides(
     id: number,

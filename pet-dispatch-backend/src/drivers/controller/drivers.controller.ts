@@ -2,19 +2,26 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   BadRequestException,
   Body,
-  Controller, Delete,
-  Get, HttpException, HttpStatus,
+  Controller,
+  Delete,
+  Get,
+  HttpException,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Post,
-  Put, Query,
+  Put,
+  Query,
 } from '@nestjs/common';
 import { DriversService } from '../service/drivers.service';
 import {
   DriverMonthlyOverrideDto,
   DriversResponseDto,
 } from '../model/drivers.response.dto';
-import {CreateDriverDto, CreateWeeklyScheduleDtoInput} from '../model/create.driver.dto';
+import {
+  CreateDriverDto,
+  CreateWeeklyScheduleDtoInput,
+} from '../model/create.driver.dto';
 import { UpdateDriverDto } from '../model/update.driver.dto';
 
 @ApiTags('drivers')
@@ -33,10 +40,9 @@ export class DriversController {
   @ApiOperation({ summary: 'Retrieve drivers weekly schedule' })
   @ApiResponse({ status: 200, description: 'List of drivers schedule' })
   async getDriverWeeklySchedule(
-      @Param('id') driverId: number,
-      @Query('weekStart') weekStart: string,
+    @Param('id') driverId: number,
+    @Query('weekStart') weekStart: string,
   ) {
-
     const weekStartDate = new Date(weekStart);
     console.log('requested drivers weekly schedule');
 
@@ -44,7 +50,10 @@ export class DriversController {
       throw new BadRequestException('Invalid weekStart date');
     }
 
-    const schedule = await this.driversService.getWeeklySchedule(driverId, weekStartDate);
+    const schedule = await this.driversService.getWeeklySchedule(
+      driverId,
+      weekStartDate,
+    );
 
     if (!schedule || schedule.length === 0) {
       return {};
@@ -93,43 +102,66 @@ export class DriversController {
   }
 
   @ApiOperation({ summary: 'Update driver weekly schedule' })
-  @ApiResponse({ status: 200, description: 'Driver weekly schedule updated successfully.' })
-  @ApiResponse({ status: 400, description: 'Invalid request or driver ID not found.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Driver weekly schedule updated successfully.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid request or driver ID not found.',
+  })
   @Put(':id/weekly-schedule')
   async updateDriverWeeklySchedule(
-      @Param('id') id: number,
-      @Body() weeklySchedule: CreateWeeklyScheduleDtoInput,
+    @Param('id') id: number,
+    @Body() weeklySchedule: CreateWeeklyScheduleDtoInput,
   ) {
-    return this.driversService.updateDriverWeeklySchedule(id, weeklySchedule.weeklySchedule);
+    return this.driversService.updateDriverWeeklySchedule(
+      id,
+      weeklySchedule.weeklySchedule,
+    );
   }
 
   @ApiOperation({ summary: 'Apply driver schedule to the whole month' })
-  @ApiResponse({ status: 200, description: 'Driver monthly schedule applied successfully.' })
-  @ApiResponse({ status: 400, description: 'Invalid request or driver ID not found.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Driver monthly schedule applied successfully.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid request or driver ID not found.',
+  })
   @Put(':id/monthly-schedule')
   async applyMonthlySchedule(
-      @Param('id') id: number,
-      @Body() monthlySchedule: CreateWeeklyScheduleDtoInput,
-      @Query('monthStart') monthStart: string,
-      @Query('monthEnd') monthEnd: string,
+    @Param('id') id: number,
+    @Body() monthlySchedule: CreateWeeklyScheduleDtoInput,
+    @Query('monthStart') monthStart: string,
+    @Query('monthEnd') monthEnd: string,
   ) {
     const startDate = new Date(monthStart);
     const endDate = new Date(monthEnd);
-    return this.driversService.applyMonthlySchedule(id, monthlySchedule.weeklySchedule, startDate, endDate);
+    return this.driversService.applyMonthlySchedule(
+      id,
+      monthlySchedule.weeklySchedule,
+      startDate,
+      endDate,
+    );
   }
 
   @ApiOperation({ summary: 'Delete a driver' })
   @ApiResponse({ status: 200, description: 'Driver deleted successfully.' })
-  @ApiResponse({ status: 400, description: 'Invalid driver ID or driver not found.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid driver ID or driver not found.',
+  })
   @Delete(':id')
   async deleteDriver(@Param('id') id: number) {
     try {
-      console.log('delete driver requested')
+      console.log('delete driver requested');
       return await this.driversService.deleteDriver(id);
     } catch (error) {
       throw new HttpException(
-          `Error deleting driver: ${error.message}`,
-          HttpStatus.BAD_REQUEST,
+        `Error deleting driver: ${error.message}`,
+        HttpStatus.BAD_REQUEST,
       );
     }
   }

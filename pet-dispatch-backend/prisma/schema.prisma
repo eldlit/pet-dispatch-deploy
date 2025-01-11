@@ -15,6 +15,8 @@ model customer {
   customerStatus CustomerStatus @default(ACTIVE)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+
+  ride ride[]
 }
 
 model driver {
@@ -37,6 +39,9 @@ model driver {
   updatedAt              DateTime                  @updatedAt
   scheduleOverrides      driver_monthly_override[]
   weeklySchedule         driver_weekly_schedule[]
+
+  rider      ride[]
+  google_api google_api[]
 }
 
 model driver_weekly_schedule {
@@ -63,7 +68,7 @@ model driver_monthly_override {
   @@unique([driverId, date])
 }
 
-model Ride {
+model ride {
   id              Int           @id @default(autoincrement())
   customerId      Int           @map("customer_id")
   driverId        Int?          @map("driver_id")
@@ -78,9 +83,28 @@ model Ride {
   paymentMethod   PaymentMethod @default(CASH)
   status          RideStatus    @default(INCOMPLETE)
   scheduledTime   DateTime
+  rideEndTime     DateTime?
+  rideDistance    Decimal?      @db.Decimal(10, 2)
   price           Decimal?      @db.Decimal(10, 2)
+  uploadedFile    Bytes?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  calendarEventId String?
+
+  customer customer @relation(fields: [customerId], references: [id])
+  driver   driver?  @relation(fields: [driverId], references: [id])
+}
+
+model google_api {
+  id           Int      @id @default(autoincrement())
+  driverId     Int      @unique
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  createdAt    DateTime
+  updatedAt    DateTime
+
+  driver driver? @relation(fields: [driverId], references: [id])
 }
 
 enum DayOfWeek {

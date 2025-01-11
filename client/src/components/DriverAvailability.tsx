@@ -33,7 +33,7 @@ import {
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://pet-dispatch-deploy-production.up.railway.app";
 
 const backendResponseSchema = z.array(
     z.object({
@@ -290,6 +290,9 @@ const DriverAvailability: FC<DriverAvailabilityProps> = ({
         }
     };
 
+    // @ts-ignore
+    // @ts-ignore
+    // @ts-ignore
     return (
         <Card className="p-6 space-y-6">
             <h3 className="text-lg font-semibold">Driver Weekly Schedule</h3>
@@ -337,14 +340,14 @@ const DriverAvailability: FC<DriverAvailabilityProps> = ({
                                         control={form.control}
                                         name={`weeklySchedule.${index}.startTime`}
                                         render={({ field }) => (
-                                            <Input type="time" value={field.value} {...field} />
+                                            <Input type="time" {...field} />
                                         )}
                                     />
                                     <FormField
                                         control={form.control}
                                         name={`weeklySchedule.${index}.endTime`}
                                         render={({ field }) => (
-                                            <Input type="time" value={field.value} {...field} />
+                                            <Input type="time" {...field} />
                                         )}
                                     />
                                 </div>
@@ -369,7 +372,7 @@ const DriverAvailability: FC<DriverAvailabilityProps> = ({
                             Save Schedule
                         </Button>
                         <Button
-                            variant="primary"
+                            variant="default"
                             className="w-full mt-4"
                             onClick={applyToWholeMonth}
                             disabled={isLoading}

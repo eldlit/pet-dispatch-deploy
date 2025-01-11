@@ -1,9 +1,9 @@
-import { FC, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { FC, useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar } from "@/components/ui/calendar";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronUp, Phone, Plus, CheckCircle2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,267 +13,252 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { 
-  Plus, 
-  Phone, 
-  Clock, 
-  CalendarDays,
-  ChevronDown,
-  ChevronUp,
-  CheckCircle2
-} from "lucide-react";
-import { format, addHours, isSameDay, startOfHour } from "date-fns";
-import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { mockDrivers, mockRides } from "../lib/mock-data";
+import { format, addHours, startOfHour, isSameDay } from "date-fns";
+
+const BACKEND_URL =
+    import.meta.env.VITE_BACKEND_URL ||
+    "https://pet-dispatch-deploy-production.up.railway.app";
 
 const Dispatch: FC = () => {
-  const [timelineView, setTimelineView] = useState(false);
+  const [drivers, setDrivers] = useState([]);
+  const [rides, setRides] = useState([]); // List of available rides
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [expandedDrivers, setExpandedDrivers] = useState<number[]>([]);
 
-  // Get all drivers with normalized status
-  const allDrivers = mockDrivers.map(driver => ({
-    ...driver,
-    status: driver.status === "offline" ? "not working" : 
-            driver.status === "on_ride" ? "on ride" : "available now"
-  }));
-
-  // Get current rides for drivers
-  const getCurrentRide = (driverId: number) => {
-    return mockRides.find(
-      (ride) => ride.driverId === driverId && ride.status === "in_progress"
-    );
+  // Fetch drivers from the backend
+  const fetchDrivers = async () => {
+    try {
+      const formattedDate = selectedDate.toISOString();
+      const response = await fetch(
+          `${BACKEND_URL}/dispatch/availability?date=${formattedDate}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch driver data");
+      const data = await response.json();
+      setDrivers(data); // Backend response should match the drivers structure
+    } catch (error) {
+      console.error("Error fetching drivers:", error);
+    }
   };
 
-  // Get future rides for a driver on selected date
-  const getFutureRides = (driverId: number) => {
-    return mockRides.filter(
-      (ride) => 
-        ride.driverId === driverId && 
-        isSameDay(new Date(ride.scheduledTime), selectedDate)
-    ).sort((a, b) => 
-      new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime()
-    );
+  // Fetch available rides
+  const fetchRides = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/rides`);
+      if (!response.ok) throw new Error("Failed to fetch rides data");
+      const data = await response.json();
+      setRides(data.rides); // Assume API returns { rides: [...] }
+    } catch (error) {
+      console.error("Error fetching rides:", error);
+    }
   };
 
-  // Toggle driver timeline
-  const toggleDriverTimeline = (driverId: number) => {
-    setExpandedDrivers(prev => 
-      prev.includes(driverId)
-        ? prev.filter(id => id !== driverId)
-        : [...prev, driverId]
-    );
+  // Assign a ride to a driver
+  const assignRide = async (driverId: number, rideId: number) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/rides/assign/${driverId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rideId }),
+      });
+      if (!response.ok) throw new Error("Failed to assign ride");
+      await fetchDrivers(); // Refresh driver data
+      await fetchRides(); // Refresh available rides
+    } catch (error) {
+      console.error("Error assigning ride:", error);
+    }
   };
 
-  // Get time slots for the selected date
+  // Unassign a ride from a driver
+  const unassignRide = async (driverId: number, rideId: number) => {
+    try {
+      const response = await fetch(
+          `${BACKEND_URL}/rides/unassign/${driverId}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rideId }),
+          }
+      );
+      if (!response.ok) throw new Error("Failed to unassign ride");
+      await fetchDrivers(); // Refresh driver data
+      await fetchRides(); // Refresh available rides
+    } catch (error) {
+      console.error("Error unassigning ride:", error);
+    }
+  };
+
+  // Generate time slots for the day
   const getTimeSlots = () => {
     const slots = [];
     const startTime = startOfHour(selectedDate);
-    
-    // Show 8 time slots for the selected date (3-hour intervals)
     for (let i = 0; i < 8; i++) {
       slots.push(addHours(startTime, i * 3));
     }
-    
     return slots;
   };
 
+  // Toggle driver timeline expansion
+  const toggleDriverTimeline = (driverId: number) => {
+    setExpandedDrivers((prev) =>
+        prev.includes(driverId)
+            ? prev.filter((id) => id !== driverId)
+            : [...prev, driverId]
+    );
+  };
+
+  useEffect(() => {
+    fetchDrivers();
+    fetchRides();
+  }, [selectedDate]);
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dispatch Center</h1>
-          <p className="text-muted-foreground">
-            View and manage driver availability in real-time
-          </p>
-        </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> Assign New Ride
-        </Button>
-      </div>
-
-      <div className="space-y-4 mb-6">
-        <div className="flex items-center gap-4">
-          <Button
-            variant={timelineView ? "default" : "outline"}
-            onClick={() => setTimelineView(!timelineView)}
-          >
-            <CalendarDays className="h-4 w-4 mr-2" />
-            {timelineView ? "Hide Schedule" : "Show Schedule"}
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Dispatch Center</h1>
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Assign New Ride
           </Button>
-          {timelineView && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[200px] pl-3 text-left font-normal">
-                  {format(selectedDate, "MMM d, yyyy")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          )}
         </div>
-      </div>
 
-      <Card className="p-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Driver</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Current/Next Location</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {allDrivers.map((driver) => {
-              const currentRide = getCurrentRide(driver.id);
-              const futureRides = getFutureRides(driver.id);
-              const isExpanded = expandedDrivers.includes(driver.id);
-              
-              return (
-                <Collapsible key={driver.id} open={isExpanded}>
-                  <TableRow>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage
-                            src={`https://i.pravatar.cc/40?u=${driver.id}`}
-                            alt={driver.name}
-                          />
-                          <AvatarFallback>
-                            {driver.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{driver.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            ID #{driver.id}
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={driver.status === "available now" ? "default" : "secondary"}
-                        className="capitalize"
-                      >
-                        {driver.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {currentRide ? (
-                        <div>
-                          <div className="font-medium">
-                            Current: {currentRide.dropoffLocation}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            ETA: {format(new Date(currentRide.scheduledTime), "h:mm a")}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4 inline mr-1" />
-                          Available Now
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm">
-                        <Phone className="h-4 w-4 mr-1" />
-                        {driver.phone}
-                      </Button>
-                    </TableCell>
-                    <TableCell className="space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={driver.status !== "available now"}
-                      >
-                        Assign Ride
-                      </Button>
-                      {timelineView && (
-                        <CollapsibleTrigger asChild>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => toggleDriverTimeline(driver.id)}
-                          >
-                            {isExpanded ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </CollapsibleTrigger>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                  
-                  {timelineView && (
-                    <CollapsibleContent>
-                      <tr>
-                        <td colSpan={5}>
-                          <div className="px-4 py-2 space-y-4 border-t">
-                            <h4 className="font-medium text-sm">
-                              Schedule for {format(selectedDate, "MMMM d, yyyy")}
-                            </h4>
-                            <div className="grid grid-cols-4 gap-4">
-                              {getTimeSlots().map((slot, index) => {
-                                const hasRide = futureRides.some(ride => 
-                                  isSameDay(new Date(ride.scheduledTime), slot) &&
-                                  new Date(ride.scheduledTime).getHours() === slot.getHours()
-                                );
-                                
-                                return (
-                                  <div key={index} className="space-y-2">
-                                    <div className="text-sm font-medium">
-                                      {format(slot, "h:mm a")}
-                                    </div>
-                                    {hasRide ? (
-                                      <Badge variant="secondary">
-                                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                                        Booked
-                                      </Badge>
-                                    ) : (
-                                      <Button size="sm" variant="outline" className="w-full">
-                                        Assign
-                                      </Button>
-                                    )}
-                                  </div>
-                                );
-                              })}
+        <Card className="p-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Driver</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Next Ride</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {drivers.map((driver: any) => {
+                const isExpanded = expandedDrivers.includes(driver.id);
+                const nextRide = driver.nextRide;
+
+                return (
+                    <Collapsible key={driver.id} open={isExpanded}>
+                      <TableRow>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Avatar>
+                              <AvatarImage
+                                  src={`https://i.pravatar.cc/40?u=${driver.id}`}
+                                  alt={driver.name}
+                              />
+                              <AvatarFallback>{driver.name[0]}</AvatarFallback>
+                            </Avatar>
+                            <div className="ml-3">
+                              <div className="font-medium">{driver.name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                ID #{driver.id}
+                              </div>
                             </div>
                           </div>
-                        </td>
-                      </tr>
-                    </CollapsibleContent>
-                  )}
-                </Collapsible>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </Card>
-    </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="capitalize">{driver.status}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {nextRide ? (
+                              <div>
+                                <div className="font-medium">
+                                  To: {nextRide.dropoffLocation}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {format(
+                                      new Date(nextRide.scheduledTime),
+                                      "PPP p"
+                                  )}
+                                </div>
+                              </div>
+                          ) : (
+                              <span>No rides scheduled</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <select
+                              onChange={(e) =>
+                                  assignRide(driver.id, parseInt(e.target.value))
+                              }
+                              disabled={driver.status !== "AVAILABLE"}
+                              className="border rounded px-2 py-1"
+                          >
+                            <option value="">Assign Ride</option>
+                            {rides.map((ride: any) => (
+                                <option key={ride.id} value={ride.id}>
+                                  {ride.dropoffLocation} -{" "}
+                                  {format(
+                                      new Date(ride.scheduledTime),
+                                      "PPP p"
+                                  )}
+                                </option>
+                            ))}
+                          </select>
+                          <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => unassignRide(driver.id, nextRide?.id)}
+                              disabled={!nextRide}
+                          >
+                            Unassign
+                          </Button>
+                          <CollapsibleTrigger asChild>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => toggleDriverTimeline(driver.id)}
+                            >
+                              {isExpanded ? <ChevronUp /> : <ChevronDown />}
+                            </Button>
+                          </CollapsibleTrigger>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                          <CollapsibleContent>
+                            <tr>
+                              <td colSpan={4}>
+                                <div className="p-4 border-t">
+                                  <h4 className="font-medium">Schedule</h4>
+                                  <div className="grid grid-cols-4 gap-4 mt-2">
+                                    {getTimeSlots().map((slot, idx) => (
+                                        <div key={idx}>
+                                          <div className="text-sm">
+                                            {format(slot, "h:mm a")}
+                                          </div>
+                                          {nextRide &&
+                                          isSameDay(
+                                              new Date(nextRide.scheduledTime),
+                                              slot
+                                          ) ? (
+                                              <Badge variant="secondary">
+                                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                                Booked
+                                              </Badge>
+                                          ) : (
+                                              <Button size="sm" variant="outline">
+                                                Assign
+                                              </Button>
+                                          )}
+                                        </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          </CollapsibleContent>
+                      )}
+                    </Collapsible>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+      </div>
   );
 };
 

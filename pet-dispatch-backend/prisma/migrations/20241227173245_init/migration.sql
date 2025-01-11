@@ -52,7 +52,7 @@ CREATE TABLE "driver" (
 );
 
 -- CreateTable
-CREATE TABLE "Ride" (
+CREATE TABLE "ride" (
     "id" SERIAL NOT NULL,
     "customer_id" INTEGER NOT NULL,
     "driver_id" INTEGER,

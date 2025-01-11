@@ -14,7 +14,7 @@ import DriverAvailability from "../components/DriverAvailability";
 import { format } from "date-fns";
 import axios from "axios";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://pet-dispatch-deploy-production.up.railway.app";
 
 interface Driver {
     id: number;
