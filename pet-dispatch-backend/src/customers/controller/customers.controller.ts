@@ -7,6 +7,7 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -18,12 +19,14 @@ import {
 import { CreateCustomerDto } from '../model/create.customer.dto';
 import { UpdateCustomerDto } from '../model/update.customer.dto';
 import { CustomersService } from '../service/customers.service';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('customers')
 @Controller('customers')
 export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
 
+  @UseGuards(AuthGuard('jwt'))
   @Get()
   @ApiOperation({ summary: 'Retrieve all customers' })
   @ApiResponse({ status: 200, description: 'List of all customers.' })
@@ -31,6 +34,7 @@ export class CustomersController {
     return await this.customersService.getAllCustomers();
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get('/search')
   @ApiOperation({ summary: 'Search for a customer by name or phone number' })
   @ApiQuery({
@@ -47,6 +51,7 @@ export class CustomersController {
     return await this.customersService.searchCustomer(query);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   @ApiOperation({ summary: 'Add a new customer' })
   @ApiResponse({ status: 201, description: 'Customer created successfully.' })
@@ -55,6 +60,7 @@ export class CustomersController {
     return await this.customersService.createCustomer(createCustomerDto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Put('/update/:id')
   @ApiOperation({ summary: 'Edit an existing customer' })
   @ApiParam({ name: 'id', type: String, description: 'Customer ID' })
@@ -67,6 +73,7 @@ export class CustomersController {
     return await this.customersService.updateCustomer(id, updateCustomerDto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Delete('/delete/:id')
   @ApiOperation({ summary: 'Delete a customer' })
   @ApiParam({ name: 'id', type: String, description: 'Customer ID' })

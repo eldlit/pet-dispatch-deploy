@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = "postgresql://postgres:SCeaTxjyjHxovfwLevwCageMGVxrjOSg@junction.proxy.rlwy.net:44468/railway"
 }
 
 model customer {
@@ -96,15 +96,30 @@ model ride {
 }
 
 model google_api {
-  id           Int      @id @default(autoincrement())
-  driverId     Int      @unique
-  accessToken  String
-  refreshToken String
-  expiresAt    DateTime
-  createdAt    DateTime
-  updatedAt    DateTime
+  id               Int              @id @default(autoincrement())
+  driverId         Int              @unique
+  accessToken      String
+  refreshToken     String
+  expiresAt        DateTime
+  createdAt        DateTime
+  updatedAt        DateTime
+  connectionStatus ConnectionStatus @default(NOT_CONNECTED)
 
   driver driver? @relation(fields: [driverId], references: [id])
+}
+
+model user {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ConnectionStatus {
+  INITIATED
+  CONNECTED
+  NOT_CONNECTED
 }
 
 enum DayOfWeek {

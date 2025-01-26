@@ -13,15 +13,62 @@ export class GoogleCalendarService {
       process.env.GOOGLE_CLIENT_SECRET,
       process.env.GOOGLE_REDIRECT_URI,
     );
+
+    console.log(process.env.GOOGLE_CLIENT_ID);
+    console.log(process.env.GOOGLE_CLIENT_SECRET);
+    console.log(process.env.GOOGLE_REDIRECT_URI);
   }
 
-  getAuthUrl(driverId: number): string {
-    return this.oauth2Client.generateAuthUrl({
+  async getAuthUrl(driverId: number | string): Promise<string> {
+    // 1) Convert driverId to a number if needed
+    const numericId =
+      typeof driverId === 'string' ? parseInt(driverId, 10) : driverId;
+
+    // 2) Check if the driver exists
+    const existingDriver = await this.prisma.driver.findUnique({
+      where: { id: numericId },
+    });
+    if (!existingDriver) {
+      throw new BadRequestException('Driver does not exist');
+    }
+
+    // 3) Check if there's already a google_api record
+    let googleApiRecord = await this.prisma.google_api.findUnique({
+      where: { driverId: numericId },
+    });
+
+    // 4) If the record exists, update it...
+    if (googleApiRecord) {
+      await this.prisma.google_api.update({
+        where: { driverId: numericId },
+        data: {
+          connectionStatus: 'INITIATED',
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      googleApiRecord = await this.prisma.google_api.create({
+        data: {
+          driverId: numericId,
+          connectionStatus: 'INITIATED',
+          accessToken: '',
+          refreshToken: '',
+          expiresAt: new Date(0),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+    }
+    console.log('call google api for auth link');
+    const authUrl = this.oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: ['https://www.googleapis.com/auth/calendar'],
       prompt: 'consent',
       state: JSON.stringify({ driverId }),
     });
+    console.log(authUrl);
+    // 4) Return the URL as a string
+    return authUrl;
   }
 
   async saveTokensFromCallback(
@@ -30,9 +77,6 @@ export class GoogleCalendarService {
   ): Promise<void> {
     const { tokens } = await this.oauth2Client.getToken(code);
 
-    if (!tokens.access_token || !tokens.refresh_token) {
-      throw new BadRequestException('Invalid Google tokens');
-    }
     const numericId =
       typeof driverId === 'string' ? parseInt(driverId, 10) : driverId;
 
@@ -44,6 +88,16 @@ export class GoogleCalendarService {
       throw new BadRequestException(
         `Driver with ID ${driverId} does not exist`,
       );
+    }
+
+    if (!tokens.access_token || !tokens.refresh_token) {
+      await this.prisma.google_api.update({
+        where: { id: numericId },
+        data: {
+          connectionStatus: 'NOT_CONNECTED',
+        },
+      });
+      throw new BadRequestException('Invalid Google tokens');
     }
 
     const expiresAt = tokens.expiry_date
@@ -60,6 +114,7 @@ export class GoogleCalendarService {
         refreshToken: tokens.refresh_token,
         expiresAt,
         updatedAt: new Date(),
+        connectionStatus: 'CONNECTED',
       },
       create: {
         driverId: numericId,
@@ -68,6 +123,7 @@ export class GoogleCalendarService {
         expiresAt,
         createdAt: new Date(),
         updatedAt: new Date(),
+        connectionStatus: 'CONNECTED',
       },
     });
   }
@@ -79,6 +135,12 @@ export class GoogleCalendarService {
     const driverTokens = await this.prisma.google_api.findUnique({
       where: { driverId },
     });
+
+    if (driverTokens.connectionStatus !== 'CONNECTED') {
+      throw new BadRequestException(
+        'Google Calendar integration is not fully connected',
+      );
+    }
 
     if (!driverTokens) {
       throw new BadRequestException(

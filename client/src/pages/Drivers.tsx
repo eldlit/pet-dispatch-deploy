@@ -7,15 +7,31 @@ import { Plus, CalendarRange, UserCog, Trash } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs";
 import DriverDetailsForm from "../components/DriverDetailsForm";
 import DriverAvailability from "../components/DriverAvailability";
 import { format } from "date-fns";
-import axios from "axios";
+import axiosClient from "@/hooks/axios-client.tsx";
+import { authFetch } from "@/hooks/fetch-client.tsx";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://pet-dispatch-deploy-production.up.railway.app";
+// Adjust to your backend URL
+const BACKEND_URL =
+    import.meta.env.VITE_BACKEND_URL ||
+    "https://pet-dispatch-deploy-production.up.railway.app";
 
+// The Driver interface, including "connectionStatus"
 interface Driver {
     id: number;
     name: string;
@@ -32,6 +48,7 @@ interface Driver {
     laborCardExpiry?: string;
     medicalInsuranceExpiry?: string;
     uaeVisaExpiry?: string;
+    connectionStatus?: "CONNECTED" | "INITIATED" | "NOT_CONNECTED";
 }
 
 const formatDate = (dateString?: string): string => {
@@ -53,6 +70,10 @@ const Drivers: FC = () => {
     const [activeTab, setActiveTab] = useState("details");
     const { toast } = useToast();
 
+    // New states for Google API link modal
+    const [googleApiLink, setGoogleApiLink] = useState<string | null>(null);
+    const [showGoogleApiDialog, setShowGoogleApiDialog] = useState(false);
+
     useEffect(() => {
         fetchDrivers();
     }, []);
@@ -64,9 +85,10 @@ const Drivers: FC = () => {
         setFilteredDrivers(filtered);
     }, [searchTerm, drivers]);
 
+    // Fetch drivers
     const fetchDrivers = async () => {
         try {
-            const response = await fetch(`${BACKEND_URL}/drivers`);
+            const response = await authFetch(`${BACKEND_URL}/drivers`);
             if (!response.ok) throw new Error("Failed to fetch drivers");
             const data: Driver[] = await response.json();
             setDrivers(data);
@@ -81,19 +103,17 @@ const Drivers: FC = () => {
         }
     };
 
+    // Fetch weekly schedule (used by DriverAvailability)
     const fetchWeeklySchedule = async (driverId: number, weekStart: string) => {
         try {
-            const response = await axios.get(`${BACKEND_URL}/drivers/${driverId}/weekly-schedule`, {
-                params: { weekStart },
-            });
-
-            console.log("Backend response:", response.data);
-
+            const response = await axiosClient.get(
+                `${BACKEND_URL}/drivers/${driverId}/weekly-schedule`,
+                { params: { weekStart } }
+            );
             if (Array.isArray(response.data)) {
                 return response.data;
             }
-
-            console.warn("Unexpected response format, expected an array but got:", response.data);
+            console.warn("Unexpected schedule format:", response.data);
             return [];
         } catch (error) {
             console.error("Error fetching weekly schedule:", error);
@@ -101,19 +121,53 @@ const Drivers: FC = () => {
         }
     };
 
-    const deleteDriver = async (driverId: number) => {
+    // When user clicks "Connect Google API" button
+    const connectGoogleApi = async (driverId: number) => {
         try {
-            const response = await fetch(`${BACKEND_URL}/drivers/${driverId}`, {
-                method: "DELETE",
+            const response = await authFetch(`${BACKEND_URL}/auth-link?driverId=${driverId}`, {
+                method: "GET",
+            });
+            if (!response.ok) {
+                throw new Error("Failed to get Google API link");
+            }
+            // Expecting { url: string } from backend
+            const data = await response.json();
+            if (!data.authUrl) {
+                throw new Error("No URL found in response");
+            }
+            setGoogleApiLink(data.authUrl);
+            setShowGoogleApiDialog(true); // Open the modal
+            toast({
+                title: "Success",
+                description: "Google API link generated successfully",
             });
 
+        } catch (error) {
+            console.error("Error connecting to Google API:", error);
+            toast({
+                title: "Error",
+                description: "Failed to connect Google API",
+                variant: "destructive",
+            });
+        }
+    };
+
+    // Delete driver
+    const deleteDriver = async (
+        driverId: number,
+        e: React.MouseEvent<HTMLButtonElement, MouseEvent>
+    ) => {
+        e.stopPropagation();
+        try {
+            const response = await authFetch(`${BACKEND_URL}/drivers/${driverId}`, {
+                method: "DELETE",
+            });
             if (!response.ok) throw new Error("Failed to delete driver");
 
             toast({
                 title: "Success",
                 description: "Driver deleted successfully",
             });
-
             fetchDrivers();
         } catch (error) {
             console.error("Error deleting driver:", error);
@@ -125,24 +179,25 @@ const Drivers: FC = () => {
         }
     };
 
-    const handleDriverSave = async (driverId: number | null, driverData: Partial<Driver>) => {
+    // Create or update driver
+    const handleDriverSave = async (
+        driverId: number | null,
+        driverData: Partial<Driver>
+    ) => {
         if (driverId) {
-            // Editing an existing driver
+            // Update existing driver
             try {
-                const response = await fetch(`${BACKEND_URL}/drivers/${driverId}/details`, {
+                const response = await authFetch(`${BACKEND_URL}/drivers/${driverId}/details`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(driverData),
                 });
-
                 if (!response.ok) throw new Error("Failed to update driver details");
-
                 toast({
                     title: "Success",
                     description: "Driver details updated successfully",
                 });
-
-                fetchDrivers(); // Refresh drivers list
+                fetchDrivers();
                 setSelectedDriver(null);
                 setIsAddingDriver(false);
             } catch (error) {
@@ -154,22 +209,19 @@ const Drivers: FC = () => {
                 });
             }
         } else {
-            // Adding a new driver
+            // Add new driver
             try {
-                const response = await fetch(`${BACKEND_URL}/drivers`, {
+                const response = await authFetch(`${BACKEND_URL}/drivers`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(driverData),
                 });
-
                 if (!response.ok) throw new Error("Failed to add new driver");
-
                 toast({
                     title: "Success",
                     description: "New driver added successfully",
                 });
-
-                fetchDrivers(); // Refresh drivers list
+                fetchDrivers();
                 setSelectedDriver(null);
                 setIsAddingDriver(false);
             } catch (error) {
@@ -183,21 +235,25 @@ const Drivers: FC = () => {
         }
     };
 
-    const handleScheduleUpdate = async (driverId: number, scheduleData: any) => {
+    // Update driver schedule
+    const handleScheduleUpdate = async (
+        driverId: number,
+        scheduleData: any
+    ) => {
         try {
-            const response = await fetch(`${BACKEND_URL}/drivers/${driverId}/weekly-schedule`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(scheduleData),
-            });
-
+            const response = await fetch(
+                `${BACKEND_URL}/drivers/${driverId}/weekly-schedule`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(scheduleData),
+                }
+            );
             if (!response.ok) throw new Error("Failed to update driver schedule");
-
             toast({
                 title: "Success",
                 description: "Driver schedule updated successfully",
             });
-
             fetchDrivers();
         } catch (error) {
             console.error("Error updating driver schedule:", error);
@@ -209,9 +265,12 @@ const Drivers: FC = () => {
         }
     };
 
+    // Dialog for Add/Edit driver
     const renderDriverDialog = () => {
         const isOpen = selectedDriver !== null || isAddingDriver;
-        const driver = selectedDriver ? drivers.find((d) => d.id === selectedDriver) : null;
+        const driver = selectedDriver
+            ? drivers.find((d) => d.id === selectedDriver)
+            : null;
 
         return (
             <Dialog
@@ -227,7 +286,9 @@ const Drivers: FC = () => {
                 <DialogContent className="max-w-4xl h-[80vh] overflow-hidden flex flex-col">
                     <DialogHeader>
                         <DialogTitle>
-                            {isAddingDriver ? "Add New Driver" : `Edit Driver: ${driver?.name}`}
+                            {isAddingDriver
+                                ? "Add New Driver"
+                                : `Edit Driver: ${driver?.name}`}
                         </DialogTitle>
                     </DialogHeader>
 
@@ -247,6 +308,7 @@ const Drivers: FC = () => {
                             </TabsTrigger>
                         </TabsList>
 
+                        {/* Driver Details */}
                         <TabsContent value="details" className="flex-1 overflow-y-auto mt-4 pr-2">
                             <DriverDetailsForm
                                 initialData={{
@@ -261,18 +323,26 @@ const Drivers: FC = () => {
                                     nationalIdExpiry: formatDate(driver?.nationalIdExpiry),
                                     passportExpiry: formatDate(driver?.passportExpiry),
                                     laborCardExpiry: formatDate(driver?.laborCardExpiry),
-                                    medicalInsuranceExpiry: formatDate(driver?.medicalInsuranceExpiry),
+                                    medicalInsuranceExpiry: formatDate(
+                                        driver?.medicalInsuranceExpiry
+                                    ),
                                     uaeVisaExpiry: formatDate(driver?.uaeVisaExpiry),
                                 }}
                                 onSubmit={(data) => handleDriverSave(selectedDriver, data)}
                             />
                         </TabsContent>
 
+                        {/* Driver Schedule */}
                         {!isAddingDriver && (
-                            <TabsContent value="schedule" className="flex-1 overflow-y-auto mt-4 pr-2">
+                            <TabsContent
+                                value="schedule"
+                                className="flex-1 overflow-y-auto mt-4 pr-2"
+                            >
                                 <DriverAvailability
                                     driverId={selectedDriver!}
-                                    onSubmit={(scheduleData) => handleScheduleUpdate(selectedDriver!, scheduleData)}
+                                    onSubmit={(scheduleData) =>
+                                        handleScheduleUpdate(selectedDriver!, scheduleData)
+                                    }
                                     fetchWeeklySchedule={fetchWeeklySchedule}
                                 />
                             </TabsContent>
@@ -283,6 +353,58 @@ const Drivers: FC = () => {
         );
     };
 
+    // Dialog for showing Google API link
+    const renderGoogleApiDialog = () => {
+        return (
+            <Dialog
+                open={showGoogleApiDialog}
+                onOpenChange={(open) => setShowGoogleApiDialog(open)}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Connect Google API</DialogTitle>
+                        <DialogDescription>
+                            Below is your Google authorization link. Copy or open in a new tab
+                            to complete the connection.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                        <Input
+                            type="text"
+                            value={googleApiLink || ""}
+                            readOnly
+                            className="w-full"
+                        />
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={() => {
+                                    if (googleApiLink) {
+                                        navigator.clipboard.writeText(googleApiLink);
+                                        toast({
+                                            title: "Copied!",
+                                            description: "Link copied to clipboard",
+                                        });
+                                    }
+                                }}
+                            >
+                                Copy Link
+                            </Button>
+                            {googleApiLink && (
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => window.open(googleApiLink, "_blank")}
+                                >
+                                    Open in New Tab
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
+    };
+
+    // Main return
     return (
         <div className="space-y-6">
             <Toaster />
@@ -301,20 +423,22 @@ const Drivers: FC = () => {
                 </div>
             </div>
 
+            {/* DRIVERS GRID */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredDrivers.map((driver) => (
                     <Card
                         key={driver.id}
                         className="p-6 cursor-pointer hover:shadow-lg transition-all duration-300"
                     >
-                        <div className="flex items-start justify-between">
-                            <div
-                                className="flex items-center gap-4"
-                                onClick={() => setSelectedDriver(driver.id)}
-                            >
+                        <div
+                            className="flex items-start justify-between"
+                            onClick={() => setSelectedDriver(driver.id)}
+                        >
+                            {/* Driver Info */}
+                            <div className="flex items-center gap-4">
                                 <Avatar className="h-12 w-12">
                                     <AvatarImage
-                                        src={`https://i.pravatar.cc/48?u=${driver.id}`}
+                                       
                                         alt={driver.name}
                                     />
                                     <AvatarFallback>
@@ -329,28 +453,69 @@ const Drivers: FC = () => {
                                     <p className="text-sm text-muted-foreground">{driver.phone}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Badge
-                                    variant={driver.status === "AVAILABLE" ? "default" : "secondary"}
-                                    className="capitalize"
-                                >
-                                    {driver.status}
-                                </Badge>
-                                <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    onClick={() => deleteDriver(driver.id)}
-                                    title="Delete Driver"
-                                >
-                                    <Trash className="h-4 w-4" />
-                                </Button>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center flex-col gap-2">
+                                    {/* Connect Google API Button */}
+                                    <Button
+                                        variant="link"
+                                        size="icon"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            connectGoogleApi(driver.id);
+                                        }}
+                                    >
+                                        Google API
+                                    </Button>
+
+                                    {/* Driver Status Badge */}
+                                    <Badge
+                                        variant={
+                                            driver.status === "AVAILABLE" ? "default" : "secondary"
+                                        }
+                                        className="capitalize"
+                                    >
+                                        {driver.status}
+                                    </Badge>
+                                </div>
+                                <div className="flex items-center flex-col gap-2">
+                                    {/* Google API Status Badge */}
+                                    {driver.connectionStatus && (
+                                        <Badge
+                                            variant={
+                                                driver.connectionStatus === "CONNECTED"
+                                                    ? "default"
+                                                    : driver.connectionStatus === "INITIATED"
+                                                        ? "secondary"
+                                                        : "destructive"
+                                            }
+                                        >
+                                            {driver.connectionStatus}
+                                        </Badge>
+                                    )}
+
+                                    {/* Delete */}
+                                    <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        onClick={(e) => deleteDriver(driver.id, e)}
+                                        title="Delete Driver"
+                                    >
+                                        <Trash className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </Card>
                 ))}
             </div>
 
+            {/* Add/Edit Driver Dialog */}
             {renderDriverDialog()}
+
+            {/* Google API Link Dialog */}
+            {renderGoogleApiDialog()}
         </div>
     );
 };

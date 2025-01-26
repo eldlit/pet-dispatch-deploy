@@ -1,34 +1,172 @@
-import React, { FC, useEffect, useState } from "react";
+import React, { useState } from "react";
+import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { authFetch } from "@/hooks/fetch-client.tsx";
+
 import {
     Form,
-    FormControl,
     FormField,
     FormItem,
     FormLabel,
-    FormMessage,
+    FormControl,
+    FormMessage
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
+    SelectValue
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {authFetch} from "@/hooks/fetch-client.tsx";
 
 const BACKEND_URL =
     import.meta.env.VITE_BACKEND_URL ||
     "https://pet-dispatch-deploy-production.up.railway.app";
 
+/* ------------------------------------------------------------------
+  STEP 1: NEW CUSTOMER SCHEMA & FORM
+ ------------------------------------------------------------------ */
+const newCustomerSchema = z.object({
+    firstName: z.string().nonempty("First name is required"),
+    lastName: z.string().nonempty("Last name is required"),
+    email: z.string().email("Please enter a valid email"),
+    phone: z.string().nonempty("Phone number is required"),
+});
+
+type NewCustomerFormData = z.infer<typeof newCustomerSchema>;
+
+interface Step1NewCustomerProps {
+    onCreatedCustomer: (customerId: number, data: NewCustomerFormData) => void;
+}
+
+/**
+ * This form collects new customer details.
+ * Once the user clicks "Next", we either:
+ *  - create the customer immediately and pass back the `customerId`
+ *  - or just pass the collected data upwards to create later
+ */
+const Step1NewCustomer: React.FC<Step1NewCustomerProps> = ({ onCreatedCustomer }) => {
+    const { toast } = useToast();
+    const form = useForm<NewCustomerFormData>({
+        resolver: zodResolver(newCustomerSchema),
+    });
+
+    const handleSubmit = async (data: NewCustomerFormData) => {
+        try {
+            // Option A: Create the customer in the backend immediately:
+            const response = await authFetch(`${BACKEND_URL}/customers`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    // match your backend fields as needed
+                    name: data.firstName + " " + data.lastName,
+                    email: data.email,
+                    phone: data.phone,
+                }),
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.message || "Failed to create customer");
+            }
+
+            const createdCustomer = await response.json();
+            // Assuming the response has something like { id: number, ... }
+
+            toast({
+                title: "Success",
+                description: "Customer created successfully!",
+            });
+
+            // Pass the createdCustomer.id upwards so step 2 can use it
+            onCreatedCustomer(createdCustomer.id, data);
+        } catch (error: any) {
+            toast({
+                title: "Error",
+                description: error.message || "Failed to create customer. Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+                <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>First Name</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Enter first name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Last Name</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Enter last name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Enter email" type="email" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Phone Number</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Enter phone number" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <Button type="submit" className="w-full">
+                    Next
+                </Button>
+            </form>
+        </Form>
+    );
+};
+
+/* ------------------------------------------------------------------
+  STEP 2: ORDER SCHEMA & FORM (WITHOUT customerId SELECTION)
+ ------------------------------------------------------------------ */
 const orderSchema = z.object({
-    customerId: z.number().int().positive("Please select a customer"),
+    // We'll remove customerId from the public form because
+    // we already have it from Step 1.
     petName: z.string().nonempty("Pet name is required"),
     breed: z.string().nonempty("Breed is required"),
     specialNotes: z.string().optional(),
@@ -39,8 +177,7 @@ const orderSchema = z.object({
         .refine(
             (fileList) =>
                 !fileList ||
-                (fileList[0].type === "application/pdf" &&
-                    fileList[0].size <= 10 * 1024 * 1024),
+                (fileList[0].type === "application/pdf" && fileList[0].size <= 10 * 1024 * 1024),
             "File must be a PDF and less than 10MB"
         ),
     accompanied: z.boolean(),
@@ -48,33 +185,27 @@ const orderSchema = z.object({
     dropoffLocation: z.string().nonempty("Dropoff location is required"),
     rideType: z.enum(["ONE_WAY", "TWO_WAY"]),
     scheduledTime: z.string().refine((val) => !isNaN(Date.parse(val)), {
-        message: "Must be a valid ISO 8601 date string",
+        message: "Must be a valid date/time",
     }),
     paymentMethod: z.enum(["CASH", "PAYMENT_LINK"]),
-    status: z.enum(["INCOMPLETE", "COMPLETE", "CANCELLED", "REFUNDED"]).default(
-        "INCOMPLETE"
-    ),
+    status: z
+        .enum(["INCOMPLETE", "COMPLETE", "CANCELLED", "REFUNDED"])
+        .default("INCOMPLETE"),
     price: z
         .string()
-        .refine((val) => !isNaN(parseFloat(val)), "Price must be a number")
+        .refine((val) => !val || !isNaN(parseFloat(val)), "Price must be a valid number")
         .optional(),
 });
 
 type OrderFormData = z.infer<typeof orderSchema>;
 
-interface Customer {
-    id: number;
-    name: string;
-}
-
-interface CreateOrderFormProps {
+interface Step2OrderFormProps {
+    customerId: number; // We'll get this from Step 1
     onSuccess: () => void;
 }
 
-const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
-    const [customers, setCustomers] = useState<Customer[]>([]);
-    const [filteredCustomers, setFilteredCustomers] = useState<Customer[]>([]);
-    const [searchQuery, setSearchQuery] = useState("");
+const Step2OrderForm: React.FC<Step2OrderFormProps> = ({ customerId, onSuccess }) => {
+    const { toast } = useToast();
     const form = useForm<OrderFormData>({
         resolver: zodResolver(orderSchema),
         defaultValues: {
@@ -85,44 +216,11 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
         },
     });
 
-    const { toast } = useToast();
-
-    useEffect(() => {
-        const fetchCustomers = async () => {
-            try {
-                const response = await authFetch(`${BACKEND_URL}/customers`);
-                const data: Customer[] = await response.json();
-                setCustomers(data);
-                setFilteredCustomers(data);
-            } catch (error) {
-                console.error("Error fetching customers:", error);
-                toast({
-                    title: "Error",
-                    description: "Failed to fetch customers. Please try again.",
-                    variant: "destructive",
-                });
-            }
-        };
-
-        fetchCustomers();
-    }, [toast]);
-
-    useEffect(() => {
-        if (!searchQuery) {
-            setFilteredCustomers(customers);
-        } else {
-            setFilteredCustomers(
-                customers.filter((customer) =>
-                    customer.name.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-            );
-        }
-    }, [searchQuery, customers]);
-
     const onSubmit = async (data: OrderFormData) => {
         try {
             const formData = new FormData();
-            formData.append("customerId", data.customerId.toString());
+            // We already have the customerId from Step 1
+            formData.append("customerId", customerId.toString());
             formData.append("petName", data.petName);
             formData.append("breed", data.breed);
             formData.append("pickupLocation", data.pickupLocation);
@@ -132,6 +230,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
             formData.append("paymentMethod", data.paymentMethod);
             formData.append("status", data.status);
             formData.append("accompanied", data.accompanied ? "true" : "false");
+
             if (data.specialNotes) {
                 formData.append("specialNotes", data.specialNotes);
             }
@@ -156,10 +255,8 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
                 title: "Success",
                 description: "Order created successfully",
             });
-
             onSuccess();
         } catch (error: any) {
-            console.error("Error creating order:", error);
             toast({
                 title: "Error",
                 description: error.message || "Failed to create order. Please try again.",
@@ -174,44 +271,6 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto "
             >
-                {/* Customer Selection */}
-                <FormField
-                    control={form.control}
-                    name="customerId"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Customer</FormLabel>
-                            <Select
-                                onValueChange={(value) => field.onChange(parseInt(value))}
-                                value={field.value?.toString()}
-                            >
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a customer" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <div className="px-4 py-2">
-                                        <Input
-                                            placeholder="Search customers..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                        />
-                                    </div>
-                                    {filteredCustomers.map((customer) => (
-                                        <SelectItem
-                                            key={customer.id}
-                                            value={customer.id.toString()}
-                                        >
-                                            {customer.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
                 {/* Pet Information */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
@@ -241,12 +300,13 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
                         )}
                     />
                 </div>
+
                 <FormField
                     control={form.control}
                     name="vaccinationCopy"
                     render={({ field: { onChange } }) => (
                         <FormItem>
-                            <FormLabel>Vaccination Copy</FormLabel>
+                            <FormLabel>Vaccination Copy (PDF)</FormLabel>
                             <FormControl>
                                 <Input
                                     type="file"
@@ -258,6 +318,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
                         </FormItem>
                     )}
                 />
+
                 {/* Ride Details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
@@ -273,6 +334,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
                             </FormItem>
                         )}
                     />
+
                     <FormField
                         control={form.control}
                         name="dropoffLocation"
@@ -287,6 +349,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
                         )}
                     />
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
@@ -309,6 +372,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
                             </FormItem>
                         )}
                     />
+
                     <FormField
                         control={form.control}
                         name="specialNotes"
@@ -322,16 +386,20 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
                             </FormItem>
                         )}
                     />
+
                     <FormField
                         control={form.control}
                         name="accompanied"
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Accompaniment</FormLabel>
-                                <Select onValueChange={(value) => field.onChange(value === "true")}>
+                                <Select
+                                    onValueChange={(value) => field.onChange(value === "true")}
+                                    value={field.value ? "true" : "false"}
+                                >
                                     <FormControl>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Select accompaniment type" />
+                                            <SelectValue placeholder="Select accompaniment" />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
@@ -344,6 +412,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
                         )}
                     />
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
@@ -359,7 +428,8 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
                         )}
                     />
                 </div>
-                {/* Payment and Status */}
+
+                {/* Payment and Price */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
@@ -382,6 +452,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
                             </FormItem>
                         )}
                     />
+
                     <FormField
                         control={form.control}
                         name="price"
@@ -401,6 +472,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
                         )}
                     />
                 </div>
+
                 <Button type="submit" className="w-full">
                     Create Order
                 </Button>
@@ -409,4 +481,47 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
     );
 };
 
-export default CreateOrderForm;
+/* ------------------------------------------------------------------
+  WIZARD CONTAINER COMPONENT
+ ------------------------------------------------------------------ */
+const CreateOrderWizard: React.FC = () => {
+    // We track:
+    // 1) what step we are on
+    // 2) the ID of the newly created customer
+    // 3) (optionally) the newCustomer data
+    const [step, setStep] = useState<1 | 2>(1);
+    const [customerId, setCustomerId] = useState<number | null>(null);
+
+    const handleCreatedCustomer = (newCustomerId: number) => {
+        setCustomerId(newCustomerId);
+        setStep(2);
+    };
+
+    const handleOrderSuccess = () => {
+        // e.g. navigate away, show success, reset form, etc.
+        // For demonstration, just show an alert and reset to Step 1:
+        alert("Order created successfully!");
+        setStep(1);
+        setCustomerId(null);
+    };
+
+    return (
+        <div className="p-4">
+            {step === 1 && (
+                <div>
+                    <h2 className="text-xl font-bold mb-4">Step 1: New Customer Details</h2>
+                    <Step1NewCustomer onCreatedCustomer={handleCreatedCustomer} />
+                </div>
+            )}
+
+            {step === 2 && customerId && (
+                <div>
+                    <h2 className="text-xl font-bold mb-4">Step 2: Order Details</h2>
+                    <Step2OrderForm customerId={customerId} onSuccess={handleOrderSuccess} />
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default CreateOrderWizard;

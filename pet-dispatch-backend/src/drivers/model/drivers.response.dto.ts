@@ -165,4 +165,18 @@ export class DriversResponseDto {
     example: '2024-01-02T00:00:00.000Z',
   })
   updatedAt: string;
+
+  @ApiProperty({
+    description: 'Google API auth link (optional)',
+    example: 'https://accounts.google.com/o/oauth2/auth?client_id=...',
+    required: false,
+  })
+  googleAuthLink?: string;
+
+  @ApiProperty({
+    description: 'Driver connection status',
+    enum: ['INITIATED', 'CONNECTED', 'NOT_CONNECTED'],
+    example: 'CONNECTED',
+  })
+  connectionStatus?: string;
 }

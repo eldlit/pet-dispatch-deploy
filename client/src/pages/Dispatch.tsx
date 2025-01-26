@@ -1,265 +1,299 @@
-import { FC, useEffect, useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, Phone, Plus, CheckCircle2 } from "lucide-react";
+import React, { useState, useEffect } from "react"
+import { Card } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { format, addHours, startOfHour, isSameDay } from "date-fns";
+    Select,
+    SelectTrigger,
+    SelectValue,
+    SelectContent,
+    SelectItem,
+} from "@/components/ui/select"
+import { Toaster } from "@/components/ui/toaster"
+import { useToast } from "@/hooks/use-toast"
+import { format, parseISO } from "date-fns"
+import { authFetch } from "@/hooks/fetch-client.tsx"
 
 const BACKEND_URL =
     import.meta.env.VITE_BACKEND_URL ||
-    "https://pet-dispatch-deploy-production.up.railway.app";
+    "https://pet-dispatch-deploy-production.up.railway.app"
 
-const Dispatch: FC = () => {
-  const [drivers, setDrivers] = useState([]);
-  const [rides, setRides] = useState([]); // List of available rides
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [expandedDrivers, setExpandedDrivers] = useState<number[]>([]);
+export interface Ride {
+    id: number
+    customerId: number
+    customerName?: string
+    driverId?: number // Null or undefined if not assigned
+    petName: string
+    breed: string
+    pickupLocation: string
+    dropoffLocation: string
+    specialNotes?: string
+    vaccinationCopy?: string
+    accompanied: boolean
+    rideType: string
+    paymentMethod: string
+    status: string
+    scheduledTime: string // ISO string
+    rideEndTime?: string // ISO string
+    rideDistance?: string
+    price?: string
+    isVaccinationAttached?: boolean
+}
 
-  // Fetch drivers from the backend
-  const fetchDrivers = async () => {
-    try {
-      const formattedDate = selectedDate.toISOString();
-      const response = await fetch(
-          `${BACKEND_URL}/dispatch/availability?date=${formattedDate}`
-      );
-      if (!response.ok) throw new Error("Failed to fetch driver data");
-      const data = await response.json();
-      setDrivers(data); // Backend response should match the drivers structure
-    } catch (error) {
-      console.error("Error fetching drivers:", error);
+interface DriverAvailability {
+    id: number
+    name: string
+    status: string
+    nextRide?: {
+        pickupLocation: string
+        dropoffLocation: string
+        scheduledTime: string
+    } | null
+}
+
+const ManageAssignmentsPage: React.FC = () => {
+    const { toast } = useToast()
+
+    const [selectedDateTime, setSelectedDateTime] = useState(() => {
+        const now = new Date()
+        return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, 16)
+    })
+
+    const [drivers, setDrivers] = useState<DriverAvailability[]>([])
+    const [allRides, setAllRides] = useState<Ride[]>([])
+    const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+        fetchAllRides()
+    }, [])
+
+    useEffect(() => {
+        fetchDriverAvailability(selectedDateTime)
+    }, [selectedDateTime])
+
+    // 4. GET /dispatch/availability?datetime=...
+    async function fetchDriverAvailability(dateTimeString: string) {
+        try {
+            setLoading(true)
+            const response = await authFetch(
+                `${BACKEND_URL}/dispatch/availability?datetime=${dateTimeString}`
+            )
+            if (!response.ok) {
+                throw new Error("Failed to fetch driver availability")
+            }
+            const data = await response.json()
+            setDrivers(data)
+        } catch (err) {
+            console.error(err)
+            toast({
+                title: "Error",
+                description: "Failed to load drivers",
+                variant: "destructive",
+            })
+        } finally {
+            setLoading(false)
+        }
     }
-  };
 
-  // Fetch available rides
-  const fetchRides = async () => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/rides`);
-      if (!response.ok) throw new Error("Failed to fetch rides data");
-      const data = await response.json();
-      setRides(data.rides); // Assume API returns { rides: [...] }
-    } catch (error) {
-      console.error("Error fetching rides:", error);
+    async function fetchAllRides() {
+        try {
+            setLoading(true)
+            const response = await authFetch(`${BACKEND_URL}/rides`)
+            if (!response.ok) {
+                throw new Error("Failed to fetch rides")
+            }
+            const data = await response.json()
+
+            setAllRides(data.rides ?? data)
+        } catch (err) {
+            console.error(err)
+            toast({
+                title: "Error",
+                description: "Failed to load rides",
+                variant: "destructive",
+            })
+        } finally {
+            setLoading(false)
+        }
     }
-  };
 
-  // Assign a ride to a driver
-  const assignRide = async (driverId: number, rideId: number) => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/rides/assign/${driverId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rideId }),
-      });
-      if (!response.ok) throw new Error("Failed to assign ride");
-      await fetchDrivers(); // Refresh driver data
-      await fetchRides(); // Refresh available rides
-    } catch (error) {
-      console.error("Error assigning ride:", error);
+    const filteredRides = allRides.filter((ride) => {
+        const rideDate = format(new Date(ride.scheduledTime), "yyyy-MM-dd")
+        const selectedDate = selectedDateTime.slice(0, 10) // 'YYYY-MM-DD'
+        return rideDate === selectedDate
+    })
+
+    async function assignRide(driverId: number, rideId: number) {
+        try {
+            setLoading(true)
+            const response = await authFetch(
+                `${BACKEND_URL}/rides/assign/${driverId}`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ rideId }),
+                }
+            )
+            if (!response.ok) {
+                throw new Error("Failed to assign ride")
+            }
+            toast({
+                title: "Success",
+                description: `Assigned ride #${rideId} to driver #${driverId}`,
+            })
+            fetchAllRides()
+        } catch (err) {
+            console.error(err)
+            toast({
+                title: "Error",
+                description: "Failed to assign ride",
+                variant: "destructive",
+            })
+        } finally {
+            setLoading(false)
+        }
     }
-  };
 
-  // Unassign a ride from a driver
-  const unassignRide = async (driverId: number, rideId: number) => {
-    try {
-      const response = await fetch(
-          `${BACKEND_URL}/rides/unassign/${driverId}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rideId }),
-          }
-      );
-      if (!response.ok) throw new Error("Failed to unassign ride");
-      await fetchDrivers(); // Refresh driver data
-      await fetchRides(); // Refresh available rides
-    } catch (error) {
-      console.error("Error unassigning ride:", error);
+    async function unassignRide(driverId: number, rideId: number) {
+        try {
+            setLoading(true)
+            const response = await authFetch(
+                `${BACKEND_URL}/rides/unassign/${driverId}`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ rideId }),
+                }
+            )
+            if (!response.ok) {
+                throw new Error("Failed to unassign ride")
+            }
+            toast({
+                title: "Success",
+                description: `Unassigned ride #${rideId} from driver #${driverId}`,
+            })
+            fetchAllRides()
+        } catch (err) {
+            console.error(err)
+            toast({
+                title: "Error",
+                description: "Failed to unassign ride",
+                variant: "destructive",
+            })
+        } finally {
+            setLoading(false)
+        }
     }
-  };
 
-  // Generate time slots for the day
-  const getTimeSlots = () => {
-    const slots = [];
-    const startTime = startOfHour(selectedDate);
-    for (let i = 0; i < 8; i++) {
-      slots.push(addHours(startTime, i * 3));
-    }
-    return slots;
-  };
+    return (
+        <div className="space-y-6">
+            <Toaster />
+            <h1 className="text-3xl font-bold">Manage Driver Assignments</h1>
 
-  // Toggle driver timeline expansion
-  const toggleDriverTimeline = (driverId: number) => {
-    setExpandedDrivers((prev) =>
-        prev.includes(driverId)
-            ? prev.filter((id) => id !== driverId)
-            : [...prev, driverId]
-    );
-  };
+            {/* DATE+TIME PICKER */}
+            <div className="flex items-center gap-4">
+                <label htmlFor="dateTimePicker" className="font-medium">
+                    Select Date & Time:
+                </label>
+                <Input
+                    id="dateTimePicker"
+                    type="datetime-local"
+                    value={selectedDateTime}
+                    onChange={(e) => setSelectedDateTime(e.target.value)}
+                    className="w-auto"
+                />
+            </div>
 
-  useEffect(() => {
-    fetchDrivers();
-    fetchRides();
-  }, [selectedDate]);
+            {loading && <p>Loading...</p>}
 
-  return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Dispatch Center</h1>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Assign New Ride
-          </Button>
-        </div>
+            {/* Rides for the selected date (ignores time) */}
+            {!loading && filteredRides.length === 0 && (
+                <p>No rides scheduled for {selectedDateTime.slice(0, 10)}.</p>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredRides.map((ride) => {
+                    const assignedDriver = drivers.find((d) => d.id === ride.driverId)
 
-        <Card className="p-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Driver</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Next Ride</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {drivers.map((driver: any) => {
-                const isExpanded = expandedDrivers.includes(driver.id);
-                const nextRide = driver.nextRide;
+                    return (
+                        <Card key={ride.id} className="p-4 space-y-2">
+                            <div>
+                                <h3 className="font-semibold text-lg">Ride #{ride.id}</h3>
+                                <p>
+                                    <strong>Pickup:</strong> {ride.pickupLocation}
+                                </p>
+                                <p>
+                                    <strong>Dropoff:</strong> {ride.dropoffLocation}
+                                </p>
+                                <p>
+                                    <strong>Scheduled:</strong>{" "}
+                                    {format(parseISO(ride.scheduledTime), "PPpp")}
+                                </p>
 
-                return (
-                    <Collapsible key={driver.id} open={isExpanded}>
-                      <TableRow>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <Avatar>
-                              <AvatarImage
-                                  src={`https://i.pravatar.cc/40?u=${driver.id}`}
-                                  alt={driver.name}
-                              />
-                              <AvatarFallback>{driver.name[0]}</AvatarFallback>
-                            </Avatar>
-                            <div className="ml-3">
-                              <div className="font-medium">{driver.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                ID #{driver.id}
-                              </div>
+                                {/* Assigned driver display */}
+                                {assignedDriver ? (
+                                    <Badge variant="default">
+                                        Assigned to: {assignedDriver.name} (#{assignedDriver.id})
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="secondary">Unassigned</Badge>
+                                )}
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className="capitalize">{driver.status}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {nextRide ? (
-                              <div>
-                                <div className="font-medium">
-                                  To: {nextRide.dropoffLocation}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  {format(
-                                      new Date(nextRide.scheduledTime),
-                                      "PPP p"
-                                  )}
-                                </div>
-                              </div>
-                          ) : (
-                              <span>No rides scheduled</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <select
-                              onChange={(e) =>
-                                  assignRide(driver.id, parseInt(e.target.value))
-                              }
-                              disabled={driver.status !== "AVAILABLE"}
-                              className="border rounded px-2 py-1"
-                          >
-                            <option value="">Assign Ride</option>
-                            {rides.map((ride: any) => (
-                                <option key={ride.id} value={ride.id}>
-                                  {ride.dropoffLocation} -{" "}
-                                  {format(
-                                      new Date(ride.scheduledTime),
-                                      "PPP p"
-                                  )}
-                                </option>
-                            ))}
-                          </select>
-                          <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => unassignRide(driver.id, nextRide?.id)}
-                              disabled={!nextRide}
-                          >
-                            Unassign
-                          </Button>
-                          <CollapsibleTrigger asChild>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => toggleDriverTimeline(driver.id)}
-                            >
-                              {isExpanded ? <ChevronUp /> : <ChevronDown />}
-                            </Button>
-                          </CollapsibleTrigger>
-                        </TableCell>
-                      </TableRow>
-                      {isExpanded && (
-                          <CollapsibleContent>
-                            <tr>
-                              <td colSpan={4}>
-                                <div className="p-4 border-t">
-                                  <h4 className="font-medium">Schedule</h4>
-                                  <div className="grid grid-cols-4 gap-4 mt-2">
-                                    {getTimeSlots().map((slot, idx) => (
-                                        <div key={idx}>
-                                          <div className="text-sm">
-                                            {format(slot, "h:mm a")}
-                                          </div>
-                                          {nextRide &&
-                                          isSameDay(
-                                              new Date(nextRide.scheduledTime),
-                                              slot
-                                          ) ? (
-                                              <Badge variant="secondary">
-                                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                                Booked
-                                              </Badge>
-                                          ) : (
-                                              <Button size="sm" variant="outline">
-                                                Assign
-                                              </Button>
-                                          )}
-                                        </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          </CollapsibleContent>
-                      )}
-                    </Collapsible>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
-      </div>
-  );
-};
 
-export default Dispatch;
+                            {/* Buttons / Dropdown */}
+                            {assignedDriver ? (
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => unassignRide(assignedDriver.id, ride.id)}
+                                >
+                                    Unassign
+                                </Button>
+                            ) : (
+                                <div className="flex flex-col gap-2">
+                                    <Select
+                                        onValueChange={(driverIdStr) =>
+                                            assignRide(parseInt(driverIdStr), ride.id)
+                                        }
+                                    >
+                                        <SelectTrigger className="w-[240px]">
+                                            <SelectValue placeholder="Assign to driver..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {/* You could filter for only AVAILABLE drivers if desired */}
+                                            {drivers.map((driver) => (
+                                                <SelectItem key={driver.id} value={String(driver.id)}>
+                                                    <div>
+                            <span className="font-semibold">
+                              {driver.name}
+                            </span>{" "}
+                                                        <span className="text-sm text-muted-foreground">
+                              ({driver.status})
+                            </span>
+                                                        {driver.nextRide && (
+                                                            <div className="text-xs mt-1 text-muted-foreground">
+                                                                Next ride: {driver.nextRide.pickupLocation} →{" "}
+                                                                {driver.nextRide.dropoffLocation} at{" "}
+                                                                {format(
+                                                                    parseISO(driver.nextRide.scheduledTime),
+                                                                    "Pp"
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                        </Card>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
+export default ManageAssignmentsPage

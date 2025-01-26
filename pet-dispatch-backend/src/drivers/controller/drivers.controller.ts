@@ -12,6 +12,7 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { DriversService } from '../service/drivers.service';
 import {
@@ -23,12 +24,14 @@ import {
   CreateWeeklyScheduleDtoInput,
 } from '../model/create.driver.dto';
 import { UpdateDriverDto } from '../model/update.driver.dto';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('drivers')
 @Controller('drivers')
 export class DriversController {
   constructor(private readonly driversService: DriversService) {}
 
+  @UseGuards(AuthGuard('jwt'))
   @Get()
   @ApiOperation({ summary: 'Retrieve all drivers' })
   @ApiResponse({ status: 200, description: 'List of all drivers.' })
@@ -36,6 +39,7 @@ export class DriversController {
     return await this.driversService.getAllDrivers();
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id/weekly-schedule')
   @ApiOperation({ summary: 'Retrieve drivers weekly schedule' })
   @ApiResponse({ status: 200, description: 'List of drivers schedule' })
@@ -62,6 +66,7 @@ export class DriversController {
     return schedule;
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   @ApiOperation({ summary: 'Create a new driver' })
   @ApiResponse({
@@ -92,6 +97,7 @@ export class DriversController {
     }
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Put(':id/details')
   @ApiOperation({ summary: 'Update driver details' })
   async updateDriverDetails(
@@ -101,6 +107,7 @@ export class DriversController {
     return await this.driversService.updateDriverDetails(id, driverDetailsDto);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Update driver weekly schedule' })
   @ApiResponse({
     status: 200,
@@ -110,6 +117,7 @@ export class DriversController {
     status: 400,
     description: 'Invalid request or driver ID not found.',
   })
+  @UseGuards(AuthGuard('jwt'))
   @Put(':id/weekly-schedule')
   async updateDriverWeeklySchedule(
     @Param('id') id: number,
@@ -121,6 +129,7 @@ export class DriversController {
     );
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Apply driver schedule to the whole month' })
   @ApiResponse({
     status: 200,
@@ -130,6 +139,7 @@ export class DriversController {
     status: 400,
     description: 'Invalid request or driver ID not found.',
   })
+  @UseGuards(AuthGuard('jwt'))
   @Put(':id/monthly-schedule')
   async applyMonthlySchedule(
     @Param('id') id: number,
@@ -147,6 +157,7 @@ export class DriversController {
     );
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Delete a driver' })
   @ApiResponse({ status: 200, description: 'Driver deleted successfully.' })
   @ApiResponse({
@@ -166,6 +177,7 @@ export class DriversController {
     }
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Put(':id/schedule-overrides')
   @ApiOperation({ summary: 'Update driver schedule overrides' })
   async updateDriverScheduleOverrides(

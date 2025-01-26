@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import CreateOrderForm from "../components/CreateOrderForm";
 import EditOrderForm from "../components/EditOrderForm";
 import { useToast } from "@/hooks/use-toast";
+import {authFetch} from "@/hooks/fetch-client.tsx";
 
 
 interface Order {
@@ -66,8 +67,10 @@ const Orders: React.FC = () => {
   const { toast } = useToast();
 
   const fetchCustomers = async () => {
+    
+
     try {
-      const response = await fetch(`${BACKEND_URL}/customers`);
+      const response = await authFetch(`${BACKEND_URL}/customers`);
       const data: Customer[] = await response.json();
       setCustomers(data);
     } catch (error) {
@@ -82,7 +85,7 @@ const Orders: React.FC = () => {
 
   const fetchOrders = async (page = 1) => {
     try {
-      const response = await fetch(
+      const response = await authFetch(
           `${BACKEND_URL}/rides?page=${page}&limit=10&search=${search}`
       );
       const data = await response.json();
@@ -119,7 +122,7 @@ const Orders: React.FC = () => {
 
   const deleteOrder = async (orderId: number) => {
     try {
-      const response = await fetch(`${BACKEND_URL}/rides/${orderId}`, {
+      const response = await authFetch(`${BACKEND_URL}/rides/${orderId}`, {
         method: "DELETE",
       });
 
