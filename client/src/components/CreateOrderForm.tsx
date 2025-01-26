@@ -171,7 +171,7 @@ const CreateOrderForm: FC<CreateOrderFormProps> = ({ onSuccess }) => {
         <Form {...form}>
             <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto pr-6"
+                className="space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto "
             >
                 {/* Customer Selection */}
                 <FormField

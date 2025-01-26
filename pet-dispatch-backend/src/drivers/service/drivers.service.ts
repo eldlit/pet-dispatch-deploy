@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   DriverMonthlyOverrideDto,
   DriversResponseDto,
-  DriverWeeklyScheduleDto,
+
 } from '../model/drivers.response.dto';
 import {
   CreateDriverDto,
@@ -22,6 +22,7 @@ export class DriversService {
       include: {
         weeklySchedule: true,
         scheduleOverrides: true,
+        google_api: true,
       },
     });
 
@@ -57,6 +58,9 @@ export class DriversService {
       })),
       createdAt: driver.createdAt.toISOString(),
       updatedAt: driver.updatedAt.toISOString(),
+      googleAuthLink: driver.google_api[0]?.accessToken || null,
+      connectionStatus:
+        driver.google_api[0]?.connectionStatus || 'NOT_CONNECTED',
     }));
   }
 

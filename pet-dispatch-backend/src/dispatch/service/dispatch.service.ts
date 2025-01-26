@@ -12,14 +12,20 @@ export class DispatchService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async getDriverAvailability(date: Date): Promise<any[]> {
+  async getDriverAvailability(parsedDate: Date): Promise<any[]> {
+    const startOfDay = new Date(parsedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(parsedDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
     const drivers = await this.prisma.driver.findMany({
       include: {
         rider: {
           where: {
             scheduledTime: {
-              gte: new Date(date.setHours(0, 0, 0)),
-              lt: new Date(date.setHours(23, 59, 59)),
+              gte: startOfDay,
+              lt: endOfDay,
             },
           },
         },
@@ -28,10 +34,12 @@ export class DispatchService {
     });
 
     return drivers.map((driver) => {
-      const now = new Date();
+      const now = parsedDate;
+
       const currentRide = driver.rider.find(
         (ride) => ride.scheduledTime <= now && ride.rideEndTime >= now,
       );
+
       const nextRide = driver.rider
         .filter((ride) => ride.scheduledTime > now)
         .sort(
@@ -46,7 +54,7 @@ export class DispatchService {
         driver.scheduleOverrides.some(
           (o) =>
             o.date.toISOString().split('T')[0] ===
-              date.toISOString().split('T')[0] && o.overrideType !== null,
+              startOfDay.toISOString().split('T')[0] && o.overrideType !== null,
         )
       ) {
         status = 'SICK_LEAVE';

@@ -36,14 +36,9 @@ const Layout: FC<LayoutProps> = ({ children }) => {
   ];
 
   useEffect(() => {
-    const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setTheme(isDark ? "dark" : "light");
+    setTheme("light");
   }, []);
 
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
-    document.documentElement.classList.toggle("dark");
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -57,9 +52,9 @@ const Layout: FC<LayoutProps> = ({ children }) => {
           {isMobileMenuOpen ? <X /> : <Menu />}
         </Button>
         <h1 className="text-xl font-bold">RideDispatch</h1>
-        <Button variant="ghost" size="icon" onClick={toggleTheme}>
+        {/* <Button variant="ghost" size="icon" onClick={toggleTheme}>
           {theme === "light" ? <Moon /> : <Sun />}
-        </Button>
+        </Button> */}
       </div>
 
       {/* Sidebar */}
@@ -70,11 +65,7 @@ const Layout: FC<LayoutProps> = ({ children }) => {
       >
         <div className="flex flex-col h-full p-4">
           <div className="flex items-center gap-2 mb-8">
-            <img
-              src="https://images.unsplash.com/photo-1600729123691-f884cefc5cc2"
-              alt="Logo"
-              className="w-8 h-8 rounded-full"
-            />
+           
             <h1 className="text-xl font-bold">RideDispatch</h1>
           </div>
 

@@ -10,6 +10,7 @@ import {
   Query,
   Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import {
@@ -25,12 +26,14 @@ import { CreateRideDto } from '../model/create.order.dto';
 import { UpdateRideDto } from '../model/update.order.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('rides')
 @Controller('rides')
 export class RidesController {
   constructor(private readonly ridesService: RidesService) {}
 
+  @UseGuards(AuthGuard('jwt'))
   @Get()
   @ApiOperation({ summary: 'Fetch all rides (orders)' })
   @ApiResponse({
@@ -47,6 +50,7 @@ export class RidesController {
     return this.ridesService.getAllRides(pageNumber, pageSize);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a ride by ID' })
   @ApiParam({
@@ -68,6 +72,7 @@ export class RidesController {
     return { message: 'Ride deleted successfully' };
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post()
   @UseInterceptors(FileInterceptor('vaccinationFile'))
   @ApiOperation({ summary: 'Create a new ride' })
@@ -84,6 +89,7 @@ export class RidesController {
     return this.ridesService.createRide(dto, fileBuffer);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Put(':id')
   @UseInterceptors(FileInterceptor('vaccinationFile'))
   @ApiOperation({ summary: 'Update a ride by ID' })
@@ -107,6 +113,7 @@ export class RidesController {
     return this.ridesService.updateRide(rideId, dto, fileBuffer);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id/vaccination')
   @ApiOperation({ summary: 'Download vaccination file for a ride' })
   async getVaccinationFile(
@@ -128,6 +135,7 @@ export class RidesController {
     res.send(file); // Send the file buffer
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post('assign/:driverId')
   @ApiOperation({ summary: 'Assign a ride to a driver' })
   @ApiParam({
@@ -162,6 +170,7 @@ export class RidesController {
     return { message: 'Ride assigned successfully' };
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post('unassign/:driverId')
   @ApiOperation({ summary: 'Unassign a ride from a driver' })
   @ApiParam({

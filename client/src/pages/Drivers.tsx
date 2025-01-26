@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DriverDetailsForm from "../components/DriverDetailsForm";
 import DriverAvailability from "../components/DriverAvailability";
 import { format } from "date-fns";
-import axios from "axios";
+import {authFetch} from "@/hooks/fetch-client.tsx";
+import axiosClient from "@/hooks/axios-client.tsx";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://pet-dispatch-deploy-production.up.railway.app";
 
@@ -66,7 +67,7 @@ const Drivers: FC = () => {
 
     const fetchDrivers = async () => {
         try {
-            const response = await fetch(`${BACKEND_URL}/drivers`);
+            const response = await authFetch(`${BACKEND_URL}/drivers`);
             if (!response.ok) throw new Error("Failed to fetch drivers");
             const data: Driver[] = await response.json();
             setDrivers(data);
@@ -83,7 +84,7 @@ const Drivers: FC = () => {
 
     const fetchWeeklySchedule = async (driverId: number, weekStart: string) => {
         try {
-            const response = await axios.get(`${BACKEND_URL}/drivers/${driverId}/weekly-schedule`, {
+            const response = await axiosClient.get(`${BACKEND_URL}/drivers/${driverId}/weekly-schedule`, {
                 params: { weekStart },
             });
 
@@ -100,10 +101,33 @@ const Drivers: FC = () => {
             return [];
         }
     };
-
-    const deleteDriver = async (driverId: number) => {
+    const getGoogleApi = async (driverId: number) => {
         try {
-            const response = await fetch(`${BACKEND_URL}/drivers/${driverId}`, {
+            const response = await authFetch(`https://pet-dispatch-deploy-production.up.railway.app/auth-link?driverId=${driverId}`, {
+                method: "GET",
+            });
+
+            if (!response.ok) throw new Error("Failed to get google api");
+
+            toast({
+                title: "Success",
+                description: "Google Api fetched successfully",
+            });
+
+            fetchDrivers();
+        } catch (error) {
+            console.error("Error getting google api:", error);
+            toast({
+                title: "Error",
+                description: "Failed to get google api",
+                variant: "destructive",
+            });
+        }
+    }
+    const deleteDriver = async (driverId: number, e: React.MouseEvent<HTMLButtonElement, MouseEvent> ) => {
+        e.stopPropagation();
+        try {
+            const response = await authFetch(`${BACKEND_URL}/drivers/${driverId}`, {
                 method: "DELETE",
             });
 
@@ -129,7 +153,7 @@ const Drivers: FC = () => {
         if (driverId) {
             // Editing an existing driver
             try {
-                const response = await fetch(`${BACKEND_URL}/drivers/${driverId}/details`, {
+                const response = await authFetch(`${BACKEND_URL}/drivers/${driverId}/details`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(driverData),
@@ -156,7 +180,7 @@ const Drivers: FC = () => {
         } else {
             // Adding a new driver
             try {
-                const response = await fetch(`${BACKEND_URL}/drivers`, {
+                const response = await authFetch(`${BACKEND_URL}/drivers`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(driverData),
@@ -185,7 +209,7 @@ const Drivers: FC = () => {
 
     const handleScheduleUpdate = async (driverId: number, scheduleData: any) => {
         try {
-            const response = await fetch(`${BACKEND_URL}/drivers/${driverId}/weekly-schedule`, {
+            const response = await authFetch(`${BACKEND_URL}/drivers/${driverId}/weekly-schedule`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(scheduleData),
@@ -307,10 +331,12 @@ const Drivers: FC = () => {
                         key={driver.id}
                         className="p-6 cursor-pointer hover:shadow-lg transition-all duration-300"
                     >
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-start justify-between"
+                             onClick={() => setSelectedDriver(driver.id)}
+                        >
                             <div
-                                className="flex items-center gap-4"
-                                onClick={() => setSelectedDriver(driver.id)}
+                                className="flex avataRcLICK items-center gap-4"
+
                             >
                                 <Avatar className="h-12 w-12">
                                     <AvatarImage
@@ -330,6 +356,14 @@ const Drivers: FC = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
+                                <Button
+                                    variant='link'
+                                    size="icon"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        getGoogleApi(driver.id);
+                                    }}
+                                > GL</Button>
                                 <Badge
                                     variant={driver.status === "AVAILABLE" ? "default" : "secondary"}
                                     className="capitalize"
@@ -339,7 +373,7 @@ const Drivers: FC = () => {
                                 <Button
                                     variant="destructive"
                                     size="icon"
-                                    onClick={() => deleteDriver(driver.id)}
+                                    onClick={(e) => deleteDriver(driver.id,e)}
                                     title="Delete Driver"
                                 >
                                     <Trash className="h-4 w-4" />

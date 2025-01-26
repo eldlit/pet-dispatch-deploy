@@ -5,8 +5,6 @@ import {
   Car,
   Users,
   CalendarCheck,
-  DollarSign,
-  TrendingUp,
   Activity,
 } from "lucide-react";
 import { mockStats } from "../lib/mock-data";
@@ -25,11 +23,7 @@ const Dashboard: FC = () => {
         </div>
         <div className="hidden lg:block relative">
           <div className="absolute inset-0 bg-gradient-to-r from-background to-transparent z-10" />
-          <img
-            src="https://images.unsplash.com/photo-1566822175646-47404f1431d3"
-            alt="Dispatch Center"
-            className="w-72 h-40 rounded-lg object-cover"
-          />
+        
         </div>
       </div>
 

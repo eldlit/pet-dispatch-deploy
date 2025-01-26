@@ -12,11 +12,11 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
 
-  app.enableCors({
-    origin: '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type,Authorization',
-  });
+  // app.enableCors({
+  //   origin: '*',
+  //   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  //   allowedHeaders: 'Content-Type,Authorization',
+  // });
 
   const config = new DocumentBuilder()
     .setTitle('Pet Dispatch API')

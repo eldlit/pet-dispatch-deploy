@@ -13,9 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-import axios from "axios";
 import { Plus, Search } from "lucide-react";
 import { z } from "zod";
+import axiosClient from "@/hooks/axios-client.tsx";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://pet-dispatch-deploy-production.up.railway.app";
 
@@ -70,7 +70,7 @@ const Customers: FC = () => {
     const fetchCustomers = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`${BACKEND_URL}/customers`);
+            const response = await axiosClient.get(`${BACKEND_URL}/customers`);
             const validatedCustomers = CustomersArraySchema.parse(response.data);
             setCustomers(validatedCustomers);
             setFilteredCustomers(validatedCustomers);
@@ -111,7 +111,7 @@ const Customers: FC = () => {
         if (!validateFields()) return;
 
         try {
-            await axios.post(`${BACKEND_URL}/customers`, {
+            await axiosClient.post(`${BACKEND_URL}/customers`, {
                 name: formData.name,
                 email: formData.email,
                 phone: formData.phone,
@@ -127,7 +127,7 @@ const Customers: FC = () => {
 
     const handleDelete = async (id: number) => {
         try {
-            await axios.delete(`${BACKEND_URL}/customers/delete/${id}`);
+            await axiosClient.delete(`${BACKEND_URL}/customers/delete/${id}`);
             setCustomers(customers.filter((customer) => customer.id !== id));
             setFilteredCustomers(
                 filteredCustomers.filter((customer) => customer.id !== id)
@@ -158,7 +158,7 @@ const Customers: FC = () => {
         };
 
         try {
-            await axios.put(
+            await axiosClient.put(
                 `${BACKEND_URL}/customers/update/${editingCustomer.id}`,
                 payload
             );
@@ -221,11 +221,7 @@ const Customers: FC = () => {
                         Manage your customer relationships
                     </p>
                 </div>
-                <img
-                    src="https://images.unsplash.com/photo-1556740758-90de374c12ad"
-                    alt="Customer Service"
-                    className="hidden lg:block w-48 h-32 rounded-lg object-cover"
-                />
+                
             </div>
 
             {/* Search Bar */}

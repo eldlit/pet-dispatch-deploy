@@ -31,6 +31,7 @@ import {
     PopoverContent,
 } from "@/components/ui/popover";
 
+
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://pet-dispatch-deploy-production.up.railway.app";
@@ -42,6 +43,7 @@ const backendResponseSchema = z.array(
         dayOfWeek: z.string(),
         startTime: z.string(),
         endTime: z.string(),
+        startDate: z.string() || null,
     })
 );
 
@@ -49,6 +51,7 @@ const timeSlotSchema = z.object({
     dayOfWeek: z.string(),
     startTime: z.string().min(1, "Start time is required"),
     endTime: z.string().min(1, "End time is required"),
+    startDate: z.string().min(1, "Start date is required") || null,
 });
 
 const weeklyScheduleSchema = z.object({
@@ -72,6 +75,7 @@ interface DriverAvailabilityProps {
             dayOfWeek: string;
             startTime: string;
             endTime: string;
+            startDate?: string;
         }[] | null
     >;
 }
@@ -126,13 +130,14 @@ const DriverAvailability: FC<DriverAvailabilityProps> = ({
             const weekSchedule = schedule.map((slot) => {
                 const dayOfWeekDate = new Date(selectedWeek);
                 dayOfWeekDate.setDate(selectedWeek.getDate() + daysOfWeek.indexOf(slot.dayOfWeek));
-
                 return {
                     dayOfWeek: slot.dayOfWeek,
                     startTime: `${dayOfWeekDate.toISOString().split("T")[0]}T${slot.startTime}:00.000Z`,
                     endTime: `${dayOfWeekDate.toISOString().split("T")[0]}T${slot.endTime}:00.000Z`,
+                    startDate: dayOfWeekDate.toISOString(),
                 };
             });
+
 
             // Construct the URL with query parameters
             const url = new URL(`${BACKEND_URL}/drivers/${driverId}/monthly-schedule`);
@@ -194,6 +199,7 @@ const DriverAvailability: FC<DriverAvailabilityProps> = ({
                         (entry) => entry.dayOfWeek.toLowerCase() === day.toLowerCase()
                     );
 
+
                     if (dayEntries.length > 0) {
                         const earliestStartTime = dayEntries.reduce((earliest, current) =>
                             current.startTime < earliest.startTime ? current : earliest
@@ -202,15 +208,19 @@ const DriverAvailability: FC<DriverAvailabilityProps> = ({
                         const latestEndTime = dayEntries.reduce((latest, current) =>
                             current.endTime > latest.endTime ? current : latest
                         ).endTime;
+                        const dayDate = dayEntries.reduce((earliest, current) =>
+                            current.startDate < earliest.startDate ? current : earliest
+                        ).startDate;
 
                         return {
                             dayOfWeek: day,
                             startTime: earliestStartTime.split("T")[1].substring(0, 5),
                             endTime: latestEndTime.split("T")[1].substring(0, 5),
+                            startDate: dayDate.split("T")[0],
                         };
                     }
 
-                    return { dayOfWeek: day, startTime: "", endTime: "" };
+                    return { dayOfWeek: day, startTime: "", endTime: "", startDate: "" };
                 });
 
                 setSchedule(aggregatedSchedule);
@@ -231,6 +241,7 @@ const DriverAvailability: FC<DriverAvailabilityProps> = ({
             dayOfWeek: day,
             startTime: "09:00",
             endTime: "17:00",
+            startDate: "",
         }));
         setSchedule(defaultSchedule);
         form.reset({ weeklySchedule: defaultSchedule });
@@ -249,7 +260,7 @@ const DriverAvailability: FC<DriverAvailabilityProps> = ({
             dayOfWeek: slot.dayOfWeek,
             startTime: `${startDate.split("T")[0]}T${slot.startTime}:00.000Z`,
             endTime: `${startDate.split("T")[0]}T${slot.endTime}:00.000Z`,
-            startDate,
+            startDate: `${startDate.split("T")[0]}T00:00:00.000Z`,
             endDate,
         }));
 
@@ -334,7 +345,7 @@ const DriverAvailability: FC<DriverAvailabilityProps> = ({
                     <form onSubmit={handleSubmit}>
                         {fields.map((field, index) => (
                             <div key={field.id} className="mb-4">
-                                <FormLabel>{field.dayOfWeek}</FormLabel>
+                                <FormLabel>{field.dayOfWeek} {field.startDate}</FormLabel>
                                 <div className="grid grid-cols-2 gap-4">
                                     <FormField
                                         control={form.control}
